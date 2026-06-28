@@ -1,0 +1,19 @@
+{
+  "name": "real-business-suite",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@10.12.1",
+  "workspaces": ["apps/*"],
+  "scripts": {
+    "dev": "pnpm --filter @rbs/web dev",
+    "dev:web": "pnpm --filter @rbs/web dev",
+    "dev:api": "pnpm --filter @rbs/api start:dev",
+    "build": "pnpm --recursive --if-present build",
+    "lint": "pnpm --recursive --if-present lint",
+    "db:generate": "pnpm --filter @rbs/api prisma:generate",
+    "db:migrate": "pnpm --filter @rbs/api prisma:migrate"
+  },
+  "engines": {
+    "node": ">=20.9"
+  }
+}
