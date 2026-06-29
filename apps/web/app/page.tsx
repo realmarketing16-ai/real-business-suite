@@ -5,7 +5,7 @@ export default function Home() {
     <main className="landing">
       <nav className="nav shell">
         <div className="brand"><span>R</span> Real Business Suite</div>
-        <div className="navActions"><Link href="/login">Sign in</Link><Link className="button small" href="/register">Start free</Link></div>
+        <div className="navActions"><Link href="/support">Support</Link><Link href="/login">Sign in</Link><Link className="button small" href="/register">Start free</Link></div>
       </nav>
       <section className="hero shell">
         <div>
@@ -24,6 +24,10 @@ export default function Home() {
           <div className="activity"><i/><div><b>Everything important, in one place</b><span>Clear actions for your team every morning.</span></div></div>
         </div>
       </section>
+      <footer className="publicFooter shell">
+        <span>© {new Date().getFullYear()} Real Business Suite</span>
+        <nav><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><Link href="/support">Support</Link></nav>
+      </footer>
     </main>
   );
 }
