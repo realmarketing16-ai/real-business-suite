@@ -115,6 +115,7 @@ type TaskForm = { projectId: string; title: string; status: TaskStatus; priority
 type Role = 'OWNER' | 'ADMIN' | 'MANAGER' | 'EMPLOYEE';
 type TeamMember = { id: string; email: string; firstName: string; lastName: string; role: Role; createdAt: string };
 type TeamMemberForm = { firstName: string; lastName: string; email: string; password: string; role: Role };
+type AuditLog = { id: string; action: string; entityType: string; entityId?: string | null; description: string; actorName: string; createdAt: string };
 
 const emptyCompanyForm: CompanyForm = { name: '', industry: '', email: '', phone: '', address: '' };
 const emptyEmployeeForm: EmployeeForm = { employeeNo: '', firstName: '', lastName: '', email: '', phone: '', jobTitle: '', department: '', status: 'ACTIVE' };
@@ -190,6 +191,7 @@ export default function DashboardPage() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [reports, setReports] = useState<ReportSummary | null>(null);
   const [employeeForm, setEmployeeForm] = useState<EmployeeForm>(emptyEmployeeForm);
   const [customerForm, setCustomerForm] = useState<CustomerForm>(emptyCustomerForm);
@@ -229,7 +231,7 @@ export default function DashboardPage() {
 
   async function loadDashboard() {
     setError('');
-    const [nextSummary, nextCompany, nextEmployees, nextCustomers, nextDeals, nextProducts, nextPurchasing, nextQuotes, nextInvoices, nextExpenses, nextProjects, nextTeamMembers, nextReports] = await Promise.all([
+    const [nextSummary, nextCompany, nextEmployees, nextCustomers, nextDeals, nextProducts, nextPurchasing, nextQuotes, nextInvoices, nextExpenses, nextProjects, nextTeamMembers, nextAuditLogs, nextReports] = await Promise.all([
       api<Summary>('/dashboard/summary'),
       api<Company>('/company'),
       api<Employee[]>('/employees'),
@@ -242,6 +244,7 @@ export default function DashboardPage() {
       api<Expense[]>('/expenses'),
       api<Project[]>('/projects'),
       api<TeamMember[]>('/team'),
+      api<AuditLog[]>('/audit-logs').catch(() => []),
       api<ReportSummary>('/reports/summary'),
     ]);
     setSummary(nextSummary);
@@ -259,6 +262,7 @@ export default function DashboardPage() {
     setExpenses(nextExpenses);
     setProjects(nextProjects);
     setTeamMembers(nextTeamMembers);
+    setAuditLogs(nextAuditLogs);
     setReports(nextReports);
     setInvoiceForm((current) => ({
       ...current,
@@ -900,7 +904,7 @@ export default function DashboardPage() {
       <aside className="sidebar">
         <div className="brand light"><span>R</span> RBS</div>
         <nav>
-          {['Overview', 'Company', 'Team', 'Employees', 'Customers', 'Sales', 'Quotes', 'Inventory', 'Purchasing', 'Projects', 'Products', 'Invoices', 'Payments', 'Expenses', 'Reports'].map((item) => <a className="active" key={item}>{item}</a>)}
+          {['Overview', 'Company', 'Team', 'Audit', 'Employees', 'Customers', 'Sales', 'Quotes', 'Inventory', 'Purchasing', 'Projects', 'Products', 'Invoices', 'Payments', 'Expenses', 'Reports'].map((item) => <a className="active" key={item}>{item}</a>)}
         </nav>
         <button className="signOut" onClick={signOut}>Sign out</button>
       </aside>
@@ -977,6 +981,12 @@ export default function DashboardPage() {
             <div className="panelHeading"><div><p className="eyebrow">Access control</p><h2>Team members</h2></div><span className="badge">{summary?.metrics.admins ?? 0} admins</span></div>
             <div className="tableWrap"><table className="dataTable"><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Joined</th></tr></thead><tbody>{teamMembers.map((member) => <tr key={member.id}><td><b>{member.firstName} {member.lastName}</b></td><td>{member.email}</td><td><select value={member.role} onChange={(event) => updateTeamRole(member.id, event.target.value as Role)} disabled={saving === member.id}>{roles.map((role) => <option key={role} value={role}>{labelFromEnum(role)}</option>)}</select></td><td>{new Date(member.createdAt).toLocaleDateString()}</td></tr>)}</tbody></table></div>
           </article>
+        </section>
+
+        <section className="panel">
+          <div className="panelHeading"><div><p className="eyebrow">Audit trail</p><h2>Recent company activity</h2></div><span className="badge">{auditLogs.length} events</span></div>
+          <div className="tableWrap"><table className="dataTable"><thead><tr><th>Action</th><th>Record</th><th>Actor</th><th>When</th></tr></thead><tbody>{auditLogs.map((log) => <tr key={log.id}><td><b>{log.description}</b><small>{labelFromEnum(log.action)}</small></td><td>{labelFromEnum(log.entityType)}</td><td>{log.actorName}</td><td>{new Date(log.createdAt).toLocaleString()}</td></tr>)}</tbody></table></div>
+          {auditLogs.length === 0 && <div className="emptyState"><h3>No audit events yet</h3><p className="muted">Owners and admins will see company changes here as the team works.</p></div>}
         </section>
 
         <section className="operationsGrid">

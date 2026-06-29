@@ -120,6 +120,7 @@ model Company {
   suppliers Supplier[]
   inventoryItems InventoryItem[]
   purchaseOrders PurchaseOrder[]
+  auditLogs AuditLog[]
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
 }
@@ -133,10 +134,30 @@ model User {
   role         Role     @default(OWNER)
   companyId    String
   company      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  auditLogs    AuditLog[]
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   @@index([companyId])
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  action      String
+  entityType  String
+  entityId    String?
+  description String
+  metadata    Json?
+  actorId     String?
+  actor       User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+
+  @@index([companyId])
+  @@index([companyId, createdAt])
+  @@index([companyId, entityType])
+  @@index([actorId])
 }
 
 model Employee {
