@@ -4,8 +4,25 @@ import { api } from '@/lib/api';
 import { useRouter } from 'next/navigation';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 
+type Company = {
+  id: string;
+  name: string;
+  industry?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  address?: string | null;
+};
+
+type CompanyForm = {
+  name: string;
+  industry: string;
+  email: string;
+  phone: string;
+  address: string;
+};
+
 type Summary = {
-  company: { name: string; industry?: string };
+  company: Company;
   metrics: { employees: number; activeEmployees: number; departments: number; productsEnabled: number };
   suggestions: string[];
 };
@@ -46,6 +63,14 @@ const emptyEmployeeForm: EmployeeForm = {
   status: 'ACTIVE',
 };
 
+const emptyCompanyForm: CompanyForm = {
+  name: '',
+  industry: '',
+  email: '',
+  phone: '',
+  address: '',
+};
+
 function toEmployeeForm(employee: Employee): EmployeeForm {
   return {
     employeeNo: employee.employeeNo,
@@ -59,7 +84,17 @@ function toEmployeeForm(employee: Employee): EmployeeForm {
   };
 }
 
-function cleanPayload(form: EmployeeForm) {
+function toCompanyForm(company: Company): CompanyForm {
+  return {
+    name: company.name,
+    industry: company.industry ?? '',
+    email: company.email ?? '',
+    phone: company.phone ?? '',
+    address: company.address ?? '',
+  };
+}
+
+function cleanEmployeePayload(form: EmployeeForm) {
   return {
     employeeNo: form.employeeNo.trim(),
     firstName: form.firstName.trim(),
@@ -72,6 +107,16 @@ function cleanPayload(form: EmployeeForm) {
   };
 }
 
+function cleanCompanyPayload(form: CompanyForm) {
+  return {
+    name: form.name.trim(),
+    industry: form.industry.trim() || undefined,
+    email: form.email.trim() || undefined,
+    phone: form.phone.trim() || undefined,
+    address: form.address.trim() || undefined,
+  };
+}
+
 function initials(firstName?: string, lastName?: string) {
   return `${firstName?.[0] ?? ''}${lastName?.[0] ?? ''}`.toUpperCase() || 'RB';
 }
@@ -79,23 +124,29 @@ function initials(firstName?: string, lastName?: string) {
 export default function DashboardPage() {
   const router = useRouter();
   const [summary, setSummary] = useState<Summary | null>(null);
+  const [company, setCompany] = useState<Company | null>(null);
+  const [companyForm, setCompanyForm] = useState<CompanyForm>(emptyCompanyForm);
   const [employees, setEmployees] = useState<Employee[]>([]);
-  const [form, setForm] = useState<EmployeeForm>(emptyEmployeeForm);
+  const [employeeForm, setEmployeeForm] = useState<EmployeeForm>(emptyEmployeeForm);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [savingEmployee, setSavingEmployee] = useState(false);
+  const [savingCompany, setSavingCompany] = useState(false);
 
   const activeEmployee = useMemo(() => employees.find((employee) => employee.id === editingId), [editingId, employees]);
 
   async function loadDashboard() {
     setError('');
-    const [nextSummary, nextEmployees] = await Promise.all([
+    const [nextSummary, nextCompany, nextEmployees] = await Promise.all([
       api<Summary>('/dashboard/summary'),
+      api<Company>('/company'),
       api<Employee[]>('/employees'),
     ]);
     setSummary(nextSummary);
+    setCompany(nextCompany);
+    setCompanyForm(toCompanyForm(nextCompany));
     setEmployees(nextEmployees);
   }
 
@@ -115,30 +166,34 @@ export default function DashboardPage() {
     router.push('/login');
   }
 
-  function updateField(field: keyof EmployeeForm, value: string) {
-    setForm((current) => ({ ...current, [field]: value }));
+  function updateEmployeeField(field: keyof EmployeeForm, value: string) {
+    setEmployeeForm((current) => ({ ...current, [field]: value }));
+  }
+
+  function updateCompanyField(field: keyof CompanyForm, value: string) {
+    setCompanyForm((current) => ({ ...current, [field]: value }));
   }
 
   function startEdit(employee: Employee) {
     setEditingId(employee.id);
-    setForm(toEmployeeForm(employee));
+    setEmployeeForm(toEmployeeForm(employee));
     setNotice('');
     setError('');
   }
 
-  function resetForm() {
+  function resetEmployeeForm() {
     setEditingId(null);
-    setForm(emptyEmployeeForm);
+    setEmployeeForm(emptyEmployeeForm);
   }
 
   async function saveEmployee(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setSaving(true);
+    setSavingEmployee(true);
     setError('');
     setNotice('');
 
     try {
-      const payload = cleanPayload(form);
+      const payload = cleanEmployeePayload(employeeForm);
       if (editingId) {
         await api<Employee>(`/employees/${editingId}`, { method: 'PATCH', body: JSON.stringify(payload) });
         setNotice(`${payload.firstName} ${payload.lastName} was updated.`);
@@ -147,14 +202,36 @@ export default function DashboardPage() {
         setNotice(`${payload.firstName} ${payload.lastName} was added.`);
       }
 
-      resetForm();
+      resetEmployeeForm();
       await loadDashboard();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Unable to save employee');
     } finally {
-      setSaving(false);
+      setSavingEmployee(false);
     }
   }
+
+  async function saveCompany(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSavingCompany(true);
+    setError('');
+    setNotice('');
+
+    try {
+      const payload = cleanCompanyPayload(companyForm);
+      const updatedCompany = await api<Company>('/company', { method: 'PATCH', body: JSON.stringify(payload) });
+      setCompany(updatedCompany);
+      setCompanyForm(toCompanyForm(updatedCompany));
+      setNotice('Company settings were updated.');
+      await loadDashboard();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to save company settings');
+    } finally {
+      setSavingCompany(false);
+    }
+  }
+
+  const companyName = company?.name ?? summary?.company.name ?? 'your company';
 
   return (
     <main className="appShell">
@@ -163,10 +240,10 @@ export default function DashboardPage() {
         <nav>
           <a className="active">Overview</a>
           <a className="active">Employees</a>
-          <a>Company</a>
-          <a className="disabled">Leave <small>0.3</small></a>
-          <a className="disabled">Recruitment <small>0.4</small></a>
-          <a className="disabled">Marketing <small>0.5</small></a>
+          <a className="active">Company</a>
+          <a className="disabled">Leave <small>0.4</small></a>
+          <a className="disabled">Recruitment <small>0.5</small></a>
+          <a className="disabled">Marketing <small>0.6</small></a>
         </nav>
         <button className="signOut" onClick={signOut}>Sign out</button>
       </aside>
@@ -175,7 +252,7 @@ export default function DashboardPage() {
         <header>
           <div>
             <p className="eyebrow">Founder dashboard</p>
-            <h1>{summary ? `Welcome to ${summary.company.name}` : 'Welcome back'}</h1>
+            <h1>{summary ? `Welcome to ${companyName}` : 'Welcome back'}</h1>
           </div>
           <div className="avatar">IB</div>
         </header>
@@ -184,10 +261,10 @@ export default function DashboardPage() {
         {notice && <p className="success">{notice}</p>}
 
         <div className="stats">
-          <article><span>Total employees</span><b>{summary?.metrics.employees ?? (loading ? '—' : 0)}</b><small>People records</small></article>
-          <article><span>Active employees</span><b>{summary?.metrics.activeEmployees ?? (loading ? '—' : 0)}</b><small>Currently active</small></article>
-          <article><span>Departments</span><b>{summary?.metrics.departments ?? (loading ? '—' : 0)}</b><small>Business teams</small></article>
-          <article><span>Products enabled</span><b>{summary?.metrics.productsEnabled ?? '—'}</b><small>HR foundation</small></article>
+          <article><span>Total employees</span><b>{summary?.metrics.employees ?? (loading ? '-' : 0)}</b><small>People records</small></article>
+          <article><span>Active employees</span><b>{summary?.metrics.activeEmployees ?? (loading ? '-' : 0)}</b><small>Currently active</small></article>
+          <article><span>Departments</span><b>{summary?.metrics.departments ?? (loading ? '-' : 0)}</b><small>Business teams</small></article>
+          <article><span>Products enabled</span><b>{summary?.metrics.productsEnabled ?? '-'}</b><small>HR foundation</small></article>
         </div>
 
         <div className="dashboardGrid">
@@ -200,16 +277,40 @@ export default function DashboardPage() {
               <span className="badge">Asher</span>
             </div>
             <ul className="suggestions">
-              {(summary?.suggestions ?? ['Loading your business priorities…']).map((item) => <li key={item}><i>✓</i>{item}</li>)}
+              {(summary?.suggestions ?? ['Loading your business priorities...']).map((item) => <li key={item}><i>✓</i>{item}</li>)}
             </ul>
           </article>
-          <article className="panel">
-            <p className="eyebrow">Alpha progress</p>
-            <h2>Your foundation</h2>
-            <div className="progress"><span style={{ width: employees.length ? '80%' : '45%' }} /></div>
-            <p className="muted">Add employees and keep records clean to finish initial setup.</p>
+          <article className="panel companySnapshot">
+            <p className="eyebrow">Company profile</p>
+            <h2>{companyName}</h2>
+            <dl>
+              <div><dt>Industry</dt><dd>{company?.industry || 'Not set'}</dd></div>
+              <div><dt>Email</dt><dd>{company?.email || 'Not set'}</dd></div>
+              <div><dt>Phone</dt><dd>{company?.phone || 'Not set'}</dd></div>
+            </dl>
           </article>
         </div>
+
+        <section className="companySection">
+          <article className="panel companyFormPanel">
+            <div className="panelHeading">
+              <div>
+                <p className="eyebrow">Company settings</p>
+                <h2>Business profile</h2>
+              </div>
+              <span className="badge">Alpha 0.3</span>
+            </div>
+
+            <form className="companyForm" onSubmit={saveCompany}>
+              <label>Company name<input required minLength={2} value={companyForm.name} onChange={(event) => updateCompanyField('name', event.target.value)} placeholder="Real Business Suite" disabled={savingCompany} /></label>
+              <label>Industry<input value={companyForm.industry} onChange={(event) => updateCompanyField('industry', event.target.value)} placeholder="Professional services" disabled={savingCompany} /></label>
+              <label>Email<input type="email" value={companyForm.email} onChange={(event) => updateCompanyField('email', event.target.value)} placeholder="hello@company.com" disabled={savingCompany} /></label>
+              <label>Phone<input value={companyForm.phone} onChange={(event) => updateCompanyField('phone', event.target.value)} placeholder="+1 555 0100" disabled={savingCompany} /></label>
+              <label className="wideField">Address<textarea value={companyForm.address} onChange={(event) => updateCompanyField('address', event.target.value)} placeholder="Street, city, state" disabled={savingCompany} /></label>
+              <button className="button" disabled={savingCompany}>{savingCompany ? 'Saving...' : 'Save company settings'}</button>
+            </form>
+          </article>
+        </section>
 
         <section className="employeeSection">
           <article className="panel employeeFormPanel">
@@ -218,23 +319,23 @@ export default function DashboardPage() {
                 <p className="eyebrow">Employee management</p>
                 <h2>{editingId ? `Edit ${activeEmployee?.firstName ?? 'employee'}` : 'Add an employee'}</h2>
               </div>
-              {editingId && <button className="ghostButton" onClick={resetForm}>Cancel edit</button>}
+              {editingId && <button className="ghostButton" onClick={resetEmployeeForm}>Cancel edit</button>}
             </div>
 
             <form className="employeeForm" onSubmit={saveEmployee}>
-              <label>Employee number<input required value={form.employeeNo} onChange={(event) => updateField('employeeNo', event.target.value)} placeholder="EMP-001" disabled={saving || Boolean(editingId)} /></label>
-              <label>First name<input required minLength={2} value={form.firstName} onChange={(event) => updateField('firstName', event.target.value)} placeholder="Jordan" disabled={saving} /></label>
-              <label>Last name<input required minLength={2} value={form.lastName} onChange={(event) => updateField('lastName', event.target.value)} placeholder="Taylor" disabled={saving} /></label>
-              <label>Email<input type="email" value={form.email} onChange={(event) => updateField('email', event.target.value)} placeholder="jordan@company.com" disabled={saving} /></label>
-              <label>Phone<input value={form.phone} onChange={(event) => updateField('phone', event.target.value)} placeholder="+1 555 0100" disabled={saving} /></label>
-              <label>Job title<input value={form.jobTitle} onChange={(event) => updateField('jobTitle', event.target.value)} placeholder="Operations Manager" disabled={saving} /></label>
-              <label>Department<input value={form.department} onChange={(event) => updateField('department', event.target.value)} placeholder="Operations" disabled={saving} /></label>
-              <label>Status<select value={form.status} onChange={(event) => updateField('status', event.target.value as EmployeeStatus)} disabled={saving}>
+              <label>Employee number<input required value={employeeForm.employeeNo} onChange={(event) => updateEmployeeField('employeeNo', event.target.value)} placeholder="EMP-001" disabled={savingEmployee || Boolean(editingId)} /></label>
+              <label>First name<input required minLength={2} value={employeeForm.firstName} onChange={(event) => updateEmployeeField('firstName', event.target.value)} placeholder="Jordan" disabled={savingEmployee} /></label>
+              <label>Last name<input required minLength={2} value={employeeForm.lastName} onChange={(event) => updateEmployeeField('lastName', event.target.value)} placeholder="Taylor" disabled={savingEmployee} /></label>
+              <label>Email<input type="email" value={employeeForm.email} onChange={(event) => updateEmployeeField('email', event.target.value)} placeholder="jordan@company.com" disabled={savingEmployee} /></label>
+              <label>Phone<input value={employeeForm.phone} onChange={(event) => updateEmployeeField('phone', event.target.value)} placeholder="+1 555 0100" disabled={savingEmployee} /></label>
+              <label>Job title<input value={employeeForm.jobTitle} onChange={(event) => updateEmployeeField('jobTitle', event.target.value)} placeholder="Operations Manager" disabled={savingEmployee} /></label>
+              <label>Department<input value={employeeForm.department} onChange={(event) => updateEmployeeField('department', event.target.value)} placeholder="Operations" disabled={savingEmployee} /></label>
+              <label>Status<select value={employeeForm.status} onChange={(event) => updateEmployeeField('status', event.target.value as EmployeeStatus)} disabled={savingEmployee}>
                 <option value="ACTIVE">Active</option>
                 <option value="ON_LEAVE">On leave</option>
                 <option value="INACTIVE">Inactive</option>
               </select></label>
-              <button className="button" disabled={saving}>{saving ? 'Saving…' : editingId ? 'Update employee' : 'Add employee'}</button>
+              <button className="button" disabled={savingEmployee}>{savingEmployee ? 'Saving...' : editingId ? 'Update employee' : 'Add employee'}</button>
             </form>
           </article>
 
@@ -276,8 +377,8 @@ export default function DashboardPage() {
                             </div>
                           </div>
                         </td>
-                        <td>{employee.jobTitle || '—'}</td>
-                        <td>{employee.department || '—'}</td>
+                        <td>{employee.jobTitle || '-'}</td>
+                        <td>{employee.department || '-'}</td>
                         <td><span className={`statusPill ${employee.status.toLowerCase()}`}>{employee.status.replace('_', ' ')}</span></td>
                         <td><button className="ghostButton" onClick={() => startEdit(employee)}>Edit</button></td>
                       </tr>
