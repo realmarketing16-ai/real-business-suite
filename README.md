@@ -1,6 +1,6 @@
 # Real Business Suite Alpha
 
-Real Business Suite is a multi-tenant business platform built for Papua New Guinea. Alpha 0.1 delivers the first working foundation: registration, login, company setup, employee management, role-based access, and a founder dashboard.
+Real Business Suite is a multi-tenant business platform built for Papua New Guinea businesses. The current alpha includes company setup, authentication, employees, CRM, sales pipeline, quotes, invoices, invoice PDFs, payments, expenses, reports, projects/tasks, team roles, inventory, purchasing, audit logs, and email outbox/delivery controls.
 
 ## Architecture
 
@@ -9,25 +9,46 @@ Real Business Suite is a multi-tenant business platform built for Papua New Guin
 - `apps/api/prisma` — PostgreSQL data model and migrations
 - `docker-compose.yml` — local PostgreSQL service
 - `.github/workflows/ci.yml` — build validation
+- `docs/PRODUCTION-DEPLOYMENT.md` — production deployment checklist
+- `docs/LAUNCH-READINESS.md` — launch readiness checklist
+- `scripts/backup-db.ps1` and `scripts/restore-db.ps1` — PostgreSQL backup/restore helpers
 
 ## Local setup
 
 1. Install Node.js 20+ and Docker Desktop.
 2. Copy `.env.example` to `.env`.
 3. Run `docker compose up -d`.
-4. Run `npm install`.
-5. Run `npm run db:generate` and `npm run db:migrate`.
-6. In separate terminals run `npm run dev:api` and `npm run dev:web`.
+4. Run `pnpm install`.
+5. Run `pnpm db:generate` and `pnpm db:migrate`.
+6. In separate terminals run `pnpm dev:api` and `pnpm dev:web`.
 7. Open `http://localhost:3000`.
 
 The API is served at `http://localhost:4000/api`; health status is available at `/api/health`.
 
-## Alpha roadmap
+## Production basics
+
+Before launch:
+
+1. Set strong production environment variables from `.env.example`.
+2. Run `pnpm db:deploy` against the production database.
+3. Configure email delivery with `EMAIL_DRY_RUN=false`, `RESEND_API_KEY`, and `EMAIL_FROM`.
+4. Configure daily database backups and test restore.
+5. Complete `docs/LAUNCH-READINESS.md`.
+
+## Current alpha milestones
 
 - **0.1:** authentication, company setup, employees, dashboard
-- **0.2:** attendance, leave, departments, permissions
-- **0.3:** recruitment and PNGworkforce
-- **0.4:** marketing assets and campaigns
-- **0.5:** CRM, quotes, invoices, and sales
-- **0.6:** payroll
-- **Beta:** Asher AI
+- **0.2:** employee management
+- **0.3:** company settings
+- **0.4:** business operations dashboard
+- **0.5:** CRM and sales pipeline
+- **0.6:** expenses and profit dashboard
+- **0.7:** reports and CSV exports
+- **0.8:** projects and tasks
+- **0.9:** team users and roles
+- **1.0:** invoice PDF downloads
+- **1.1:** quotes and estimates
+- **1.2:** inventory and purchasing
+- **1.3:** audit logs
+- **1.4:** email outbox
+- **1.5:** email delivery controls

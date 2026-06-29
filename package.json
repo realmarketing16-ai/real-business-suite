@@ -11,7 +11,8 @@
     "build": "pnpm --recursive --if-present build",
     "lint": "pnpm --recursive --if-present lint",
     "db:generate": "pnpm --filter @rbs/api prisma:generate",
-    "db:migrate": "pnpm --filter @rbs/api prisma:migrate"
+    "db:migrate": "pnpm --filter @rbs/api prisma:migrate",
+    "db:deploy": "pnpm --filter @rbs/api prisma:deploy"
   },
   "engines": {
     "node": ">=20.9"
