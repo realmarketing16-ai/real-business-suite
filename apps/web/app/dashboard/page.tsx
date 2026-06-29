@@ -25,6 +25,10 @@ type Summary = {
     invoices: number;
     openInvoices: number;
     revenue: number;
+    expenses: number;
+    monthlyExpenses: number;
+    netProfit: number;
+    expenseCount: number;
     outstanding: number;
     productsEnabled: number;
   };
@@ -61,6 +65,10 @@ type Invoice = {
 type InvoiceForm = { customerId: string; dueDate: string; productId: string; description: string; quantity: string; unitPrice: string; tax: string; notes: string };
 type PaymentForm = { invoiceId: string; amount: string; method: string; reference: string };
 
+type ExpenseCategory = 'OPERATIONS' | 'MARKETING' | 'PAYROLL' | 'SOFTWARE' | 'RENT' | 'TRAVEL' | 'TAX' | 'OTHER';
+type Expense = { id: string; vendor: string; category: ExpenseCategory; amount: number; spentAt: string; description?: string | null; receiptUrl?: string | null };
+type ExpenseForm = { vendor: string; category: ExpenseCategory; amount: string; spentAt: string; description: string; receiptUrl: string };
+
 const emptyCompanyForm: CompanyForm = { name: '', industry: '', email: '', phone: '', address: '' };
 const emptyEmployeeForm: EmployeeForm = { employeeNo: '', firstName: '', lastName: '', email: '', phone: '', jobTitle: '', department: '', status: 'ACTIVE' };
 const emptyCustomerForm: CustomerForm = { name: '', email: '', phone: '', companyName: '', status: 'LEAD', notes: '' };
@@ -68,6 +76,7 @@ const emptyDealForm: DealForm = { title: '', customerId: '', stage: 'NEW_LEAD', 
 const emptyProductForm: ProductForm = { name: '', description: '', type: 'SERVICE', unitPrice: '' };
 const emptyInvoiceForm: InvoiceForm = { customerId: '', dueDate: '', productId: '', description: '', quantity: '1', unitPrice: '', tax: '0', notes: '' };
 const emptyPaymentForm: PaymentForm = { invoiceId: '', amount: '', method: 'Bank transfer', reference: '' };
+const emptyExpenseForm: ExpenseForm = { vendor: '', category: 'OPERATIONS', amount: '', spentAt: '', description: '', receiptUrl: '' };
 
 function toCompanyForm(company: Company): CompanyForm {
   return { name: company.name, industry: company.industry ?? '', email: company.email ?? '', phone: company.phone ?? '', address: company.address ?? '' };
@@ -102,6 +111,10 @@ function dealStageLabel(stage: DealStage) {
   return stage.replace('_', ' ').replace('_', ' ').toLowerCase();
 }
 
+function categoryLabel(category: ExpenseCategory) {
+  return category.toLowerCase().replace('_', ' ');
+}
+
 export default function DashboardPage() {
   const router = useRouter();
   const [summary, setSummary] = useState<Summary | null>(null);
@@ -112,12 +125,14 @@ export default function DashboardPage() {
   const [deals, setDeals] = useState<Deal[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
   const [employeeForm, setEmployeeForm] = useState<EmployeeForm>(emptyEmployeeForm);
   const [customerForm, setCustomerForm] = useState<CustomerForm>(emptyCustomerForm);
   const [dealForm, setDealForm] = useState<DealForm>(emptyDealForm);
   const [productForm, setProductForm] = useState<ProductForm>(emptyProductForm);
   const [invoiceForm, setInvoiceForm] = useState<InvoiceForm>(emptyInvoiceForm);
   const [paymentForm, setPaymentForm] = useState<PaymentForm>(emptyPaymentForm);
+  const [expenseForm, setExpenseForm] = useState<ExpenseForm>(emptyExpenseForm);
   const [editingEmployeeId, setEditingEmployeeId] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -128,11 +143,12 @@ export default function DashboardPage() {
   const activeProducts = products.filter((product) => product.active);
   const openInvoices = invoices.filter((invoice) => invoice.status !== 'PAID' && invoice.status !== 'VOID');
   const pipelineStages: DealStage[] = ['NEW_LEAD', 'CONTACTED', 'PROPOSAL_SENT', 'WON', 'LOST'];
+  const expenseCategories: ExpenseCategory[] = ['OPERATIONS', 'MARKETING', 'PAYROLL', 'SOFTWARE', 'RENT', 'TRAVEL', 'TAX', 'OTHER'];
   const companyName = company?.name ?? summary?.company.name ?? 'your company';
 
   async function loadDashboard() {
     setError('');
-    const [nextSummary, nextCompany, nextEmployees, nextCustomers, nextDeals, nextProducts, nextInvoices] = await Promise.all([
+    const [nextSummary, nextCompany, nextEmployees, nextCustomers, nextDeals, nextProducts, nextInvoices, nextExpenses] = await Promise.all([
       api<Summary>('/dashboard/summary'),
       api<Company>('/company'),
       api<Employee[]>('/employees'),
@@ -140,6 +156,7 @@ export default function DashboardPage() {
       api<Deal[]>('/deals'),
       api<Product[]>('/products'),
       api<Invoice[]>('/invoices'),
+      api<Expense[]>('/expenses'),
     ]);
     setSummary(nextSummary);
     setCompany(nextCompany);
@@ -149,6 +166,7 @@ export default function DashboardPage() {
     setDeals(nextDeals);
     setProducts(nextProducts);
     setInvoices(nextInvoices);
+    setExpenses(nextExpenses);
     setInvoiceForm((current) => ({
       ...current,
       customerId: current.customerId || nextCustomers[0]?.id || '',
@@ -415,12 +433,39 @@ export default function DashboardPage() {
     }
   }
 
+  async function saveExpense(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSaving('expense');
+    setError('');
+    setNotice('');
+    try {
+      await api<Expense>('/expenses', {
+        method: 'POST',
+        body: JSON.stringify({
+          vendor: expenseForm.vendor.trim(),
+          category: expenseForm.category,
+          amount: Number(expenseForm.amount),
+          spentAt: cleanText(expenseForm.spentAt),
+          description: cleanText(expenseForm.description),
+          receiptUrl: cleanText(expenseForm.receiptUrl),
+        }),
+      });
+      setNotice(`${expenseForm.vendor.trim()} expense was recorded.`);
+      setExpenseForm(emptyExpenseForm);
+      await loadDashboard();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to save expense');
+    } finally {
+      setSaving('');
+    }
+  }
+
   return (
     <main className="appShell">
       <aside className="sidebar">
         <div className="brand light"><span>R</span> RBS</div>
         <nav>
-          {['Overview', 'Company', 'Employees', 'Customers', 'Sales', 'Products', 'Invoices', 'Payments'].map((item) => <a className="active" key={item}>{item}</a>)}
+          {['Overview', 'Company', 'Employees', 'Customers', 'Sales', 'Products', 'Invoices', 'Payments', 'Expenses'].map((item) => <a className="active" key={item}>{item}</a>)}
         </nav>
         <button className="signOut" onClick={signOut}>Sign out</button>
       </aside>
@@ -439,6 +484,9 @@ export default function DashboardPage() {
 
         <div className="stats">
           <article><span>Revenue collected</span><b>{loading ? '-' : currency(summary?.metrics.revenue)}</b><small>Recorded payments</small></article>
+          <article><span>Net profit</span><b>{loading ? '-' : currency(summary?.metrics.netProfit)}</b><small>Revenue minus expenses</small></article>
+          <article><span>Total expenses</span><b>{loading ? '-' : currency(summary?.metrics.expenses)}</b><small>{summary?.metrics.expenseCount ?? 0} records</small></article>
+          <article><span>Monthly spend</span><b>{loading ? '-' : currency(summary?.metrics.monthlyExpenses)}</b><small>This month</small></article>
           <article><span>Outstanding</span><b>{loading ? '-' : currency(summary?.metrics.outstanding)}</b><small>Invoice balances</small></article>
           <article><span>Open pipeline</span><b>{loading ? '-' : currency(summary?.metrics.pipelineValue)}</b><small>{summary?.metrics.openDeals ?? 0} open deals</small></article>
           <article><span>Won deals</span><b>{loading ? '-' : currency(summary?.metrics.wonDealValue)}</b><small>{summary?.metrics.conversionRate ?? 0}% conversion</small></article>
@@ -630,6 +678,27 @@ export default function DashboardPage() {
               <label>Reference<input value={paymentForm.reference} onChange={(event) => setPaymentForm((current) => ({ ...current, reference: event.target.value }))} /></label>
               <button className="button" disabled={saving === 'payment' || openInvoices.length === 0}>{saving === 'payment' ? 'Recording...' : 'Record payment'}</button>
             </form>
+          </article>
+        </section>
+
+        <section className="recordsGrid">
+          <article className="panel">
+            <div className="panelHeading"><div><p className="eyebrow">Expenses</p><h2>Record expense</h2></div><span className="badge">{currency(summary?.metrics.expenses)} spent</span></div>
+            <form className="companyForm" onSubmit={saveExpense}>
+              <label>Vendor<input required minLength={2} value={expenseForm.vendor} onChange={(event) => setExpenseForm((current) => ({ ...current, vendor: event.target.value }))} placeholder="Adobe, rent, contractor..." /></label>
+              <label>Category<select value={expenseForm.category} onChange={(event) => setExpenseForm((current) => ({ ...current, category: event.target.value as ExpenseCategory }))}>{expenseCategories.map((category) => <option key={category} value={category}>{categoryLabel(category)}</option>)}</select></label>
+              <label>Amount<input required type="number" min="0.01" step="0.01" value={expenseForm.amount} onChange={(event) => setExpenseForm((current) => ({ ...current, amount: event.target.value }))} /></label>
+              <label>Spent date<input type="date" value={expenseForm.spentAt} onChange={(event) => setExpenseForm((current) => ({ ...current, spentAt: event.target.value }))} /></label>
+              <label className="wideField">Description<textarea value={expenseForm.description} onChange={(event) => setExpenseForm((current) => ({ ...current, description: event.target.value }))} /></label>
+              <label className="wideField">Receipt link<input value={expenseForm.receiptUrl} onChange={(event) => setExpenseForm((current) => ({ ...current, receiptUrl: event.target.value }))} placeholder="Optional URL" /></label>
+              <button className="button" disabled={saving === 'expense'}>{saving === 'expense' ? 'Recording...' : 'Record expense'}</button>
+            </form>
+          </article>
+
+          <article className="panel">
+            <div className="panelHeading"><div><p className="eyebrow">Expense records</p><h2>Spending log</h2></div><span className="badge">{expenses.length} records</span></div>
+            <div className="tableWrap"><table className="dataTable"><thead><tr><th>Vendor</th><th>Category</th><th>Amount</th><th>Date</th></tr></thead><tbody>{expenses.map((expense) => <tr key={expense.id}><td><b>{expense.vendor}</b><small>{expense.description || expense.receiptUrl || ''}</small></td><td><span className={`statusPill ${expense.category.toLowerCase()}`}>{categoryLabel(expense.category)}</span></td><td>{currency(expense.amount)}</td><td>{new Date(expense.spentAt).toLocaleDateString()}</td></tr>)}</tbody></table></div>
+            {expenses.length === 0 && <div className="emptyState"><h3>No expenses yet</h3><p className="muted">Record expenses to unlock your net profit view.</p></div>}
           </article>
         </section>
       </section>
