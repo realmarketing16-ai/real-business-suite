@@ -52,6 +52,13 @@ enum PaymentStatus {
   REVERSED
 }
 
+enum PurchaseOrderStatus {
+  DRAFT
+  ORDERED
+  RECEIVED
+  CANCELLED
+}
+
 enum DealStage {
   NEW_LEAD
   CONTACTED
@@ -110,6 +117,9 @@ model Company {
   expenses  Expense[]
   projects  Project[]
   tasks     Task[]
+  suppliers Supplier[]
+  inventoryItems InventoryItem[]
+  purchaseOrders PurchaseOrder[]
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
 }
@@ -204,6 +214,86 @@ model Product {
 
   @@index([companyId])
   @@index([companyId, active])
+}
+
+model Supplier {
+  id        String   @id @default(cuid())
+  name      String
+  email     String?
+  phone     String?
+  contactName String?
+  address   String?
+  notes     String?
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  inventoryItems InventoryItem[]
+  purchaseOrders PurchaseOrder[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+}
+
+model InventoryItem {
+  id          String   @id @default(cuid())
+  sku         String
+  name        String
+  description String?
+  quantity    Decimal  @default(0) @db.Decimal(12, 2)
+  reorderLevel Decimal @default(0) @db.Decimal(12, 2)
+  unitCost    Decimal  @default(0) @db.Decimal(12, 2)
+  supplierId  String?
+  supplier    Supplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  purchaseOrderItems PurchaseOrderItem[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([companyId, sku])
+  @@index([companyId])
+  @@index([companyId, quantity])
+  @@index([supplierId])
+}
+
+model PurchaseOrder {
+  id          String              @id @default(cuid())
+  orderNo     String
+  status      PurchaseOrderStatus @default(DRAFT)
+  orderedAt   DateTime            @default(now())
+  expectedAt  DateTime?
+  subtotal    Decimal             @default(0) @db.Decimal(12, 2)
+  tax         Decimal             @default(0) @db.Decimal(12, 2)
+  total       Decimal             @default(0) @db.Decimal(12, 2)
+  notes       String?
+  supplierId  String
+  supplier    Supplier            @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  companyId   String
+  company     Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  items       PurchaseOrderItem[]
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  @@unique([companyId, orderNo])
+  @@index([companyId])
+  @@index([companyId, status])
+  @@index([supplierId])
+}
+
+model PurchaseOrderItem {
+  id              String        @id @default(cuid())
+  description     String
+  quantity        Decimal       @db.Decimal(12, 2)
+  unitCost        Decimal       @db.Decimal(12, 2)
+  lineTotal       Decimal       @db.Decimal(12, 2)
+  purchaseOrderId String
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  inventoryItemId String?
+  inventoryItem   InventoryItem? @relation(fields: [inventoryItemId], references: [id], onDelete: SetNull)
+  createdAt       DateTime      @default(now())
+
+  @@index([purchaseOrderId])
+  @@index([inventoryItemId])
 }
 
 model Quote {

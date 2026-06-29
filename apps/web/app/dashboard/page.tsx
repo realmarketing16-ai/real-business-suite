@@ -58,6 +58,15 @@ type ProductType = 'PRODUCT' | 'SERVICE';
 type Product = { id: string; name: string; description?: string | null; type: ProductType; unitPrice: number; active: boolean };
 type ProductForm = { name: string; description: string; type: ProductType; unitPrice: string };
 
+type Supplier = { id: string; name: string; email?: string | null; phone?: string | null; contactName?: string | null; address?: string | null; notes?: string | null };
+type InventoryItem = { id: string; sku: string; name: string; description?: string | null; quantity: number; reorderLevel: number; unitCost: number; supplier?: Supplier | null };
+type PurchaseOrderStatus = 'DRAFT' | 'ORDERED' | 'RECEIVED' | 'CANCELLED';
+type PurchaseOrder = { id: string; orderNo: string; status: PurchaseOrderStatus; expectedAt?: string | null; total: number; supplier: Supplier };
+type PurchasingOverview = { suppliers: Supplier[]; inventoryItems: InventoryItem[]; purchaseOrders: PurchaseOrder[] };
+type SupplierForm = { name: string; email: string; phone: string; contactName: string; address: string; notes: string };
+type InventoryForm = { sku: string; name: string; description: string; quantity: string; reorderLevel: string; unitCost: string; supplierId: string };
+type PurchaseOrderForm = { supplierId: string; inventoryItemId: string; description: string; quantity: string; unitCost: string; tax: string; expectedAt: string; notes: string };
+
 type QuoteStatus = 'DRAFT' | 'SENT' | 'ACCEPTED' | 'DECLINED' | 'EXPIRED';
 type Quote = {
   id: string;
@@ -112,6 +121,9 @@ const emptyEmployeeForm: EmployeeForm = { employeeNo: '', firstName: '', lastNam
 const emptyCustomerForm: CustomerForm = { name: '', email: '', phone: '', companyName: '', status: 'LEAD', notes: '' };
 const emptyDealForm: DealForm = { title: '', customerId: '', stage: 'NEW_LEAD', value: '', expectedCloseDate: '', notes: '' };
 const emptyProductForm: ProductForm = { name: '', description: '', type: 'SERVICE', unitPrice: '' };
+const emptySupplierForm: SupplierForm = { name: '', email: '', phone: '', contactName: '', address: '', notes: '' };
+const emptyInventoryForm: InventoryForm = { sku: '', name: '', description: '', quantity: '0', reorderLevel: '0', unitCost: '0', supplierId: '' };
+const emptyPurchaseOrderForm: PurchaseOrderForm = { supplierId: '', inventoryItemId: '', description: '', quantity: '1', unitCost: '0', tax: '0', expectedAt: '', notes: '' };
 const emptyQuoteForm: QuoteForm = { customerId: '', validUntil: '', productId: '', description: '', quantity: '1', unitPrice: '', tax: '0', notes: '' };
 const emptyInvoiceForm: InvoiceForm = { customerId: '', dueDate: '', productId: '', description: '', quantity: '1', unitPrice: '', tax: '0', notes: '' };
 const emptyPaymentForm: PaymentForm = { invoiceId: '', amount: '', method: 'Bank transfer', reference: '' };
@@ -170,6 +182,9 @@ export default function DashboardPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [deals, setDeals] = useState<Deal[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
+  const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -180,6 +195,9 @@ export default function DashboardPage() {
   const [customerForm, setCustomerForm] = useState<CustomerForm>(emptyCustomerForm);
   const [dealForm, setDealForm] = useState<DealForm>(emptyDealForm);
   const [productForm, setProductForm] = useState<ProductForm>(emptyProductForm);
+  const [supplierForm, setSupplierForm] = useState<SupplierForm>(emptySupplierForm);
+  const [inventoryForm, setInventoryForm] = useState<InventoryForm>(emptyInventoryForm);
+  const [purchaseOrderForm, setPurchaseOrderForm] = useState<PurchaseOrderForm>(emptyPurchaseOrderForm);
   const [quoteForm, setQuoteForm] = useState<QuoteForm>(emptyQuoteForm);
   const [invoiceForm, setInvoiceForm] = useState<InvoiceForm>(emptyInvoiceForm);
   const [paymentForm, setPaymentForm] = useState<PaymentForm>(emptyPaymentForm);
@@ -197,7 +215,10 @@ export default function DashboardPage() {
   const activeProducts = products.filter((product) => product.active);
   const openInvoices = invoices.filter((invoice) => invoice.status !== 'PAID' && invoice.status !== 'VOID');
   const openQuotes = quotes.filter((quote) => quote.status === 'DRAFT' || quote.status === 'SENT');
+  const lowStockItems = inventoryItems.filter((item) => item.quantity <= item.reorderLevel);
+  const openPurchaseOrders = purchaseOrders.filter((order) => order.status === 'DRAFT' || order.status === 'ORDERED');
   const pipelineStages: DealStage[] = ['NEW_LEAD', 'CONTACTED', 'PROPOSAL_SENT', 'WON', 'LOST'];
+  const purchaseOrderStatuses: PurchaseOrderStatus[] = ['DRAFT', 'ORDERED', 'RECEIVED', 'CANCELLED'];
   const quoteStatuses: QuoteStatus[] = ['DRAFT', 'SENT', 'ACCEPTED', 'DECLINED', 'EXPIRED'];
   const expenseCategories: ExpenseCategory[] = ['OPERATIONS', 'MARKETING', 'PAYROLL', 'SOFTWARE', 'RENT', 'TRAVEL', 'TAX', 'OTHER'];
   const projectStatuses: ProjectStatus[] = ['PLANNED', 'ACTIVE', 'ON_HOLD', 'COMPLETED'];
@@ -208,13 +229,14 @@ export default function DashboardPage() {
 
   async function loadDashboard() {
     setError('');
-    const [nextSummary, nextCompany, nextEmployees, nextCustomers, nextDeals, nextProducts, nextQuotes, nextInvoices, nextExpenses, nextProjects, nextTeamMembers, nextReports] = await Promise.all([
+    const [nextSummary, nextCompany, nextEmployees, nextCustomers, nextDeals, nextProducts, nextPurchasing, nextQuotes, nextInvoices, nextExpenses, nextProjects, nextTeamMembers, nextReports] = await Promise.all([
       api<Summary>('/dashboard/summary'),
       api<Company>('/company'),
       api<Employee[]>('/employees'),
       api<Customer[]>('/customers'),
       api<Deal[]>('/deals'),
       api<Product[]>('/products'),
+      api<PurchasingOverview>('/purchasing'),
       api<Quote[]>('/quotes'),
       api<Invoice[]>('/invoices'),
       api<Expense[]>('/expenses'),
@@ -229,6 +251,9 @@ export default function DashboardPage() {
     setCustomers(nextCustomers);
     setDeals(nextDeals);
     setProducts(nextProducts);
+    setSuppliers(nextPurchasing.suppliers);
+    setInventoryItems(nextPurchasing.inventoryItems);
+    setPurchaseOrders(nextPurchasing.purchaseOrders);
     setQuotes(nextQuotes);
     setInvoices(nextInvoices);
     setExpenses(nextExpenses);
@@ -241,6 +266,12 @@ export default function DashboardPage() {
       productId: current.productId || nextProducts.find((product) => product.active)?.id || '',
     }));
     setDealForm((current) => ({ ...current, customerId: current.customerId || nextCustomers[0]?.id || '' }));
+    setInventoryForm((current) => ({ ...current, supplierId: current.supplierId || nextPurchasing.suppliers[0]?.id || '' }));
+    setPurchaseOrderForm((current) => ({
+      ...current,
+      supplierId: current.supplierId || nextPurchasing.suppliers[0]?.id || '',
+      inventoryItemId: current.inventoryItemId || nextPurchasing.inventoryItems[0]?.id || '',
+    }));
     setQuoteForm((current) => ({
       ...current,
       customerId: current.customerId || nextCustomers[0]?.id || '',
@@ -427,6 +458,118 @@ export default function DashboardPage() {
       await loadDashboard();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Unable to save product or service');
+    } finally {
+      setSaving('');
+    }
+  }
+
+  async function saveSupplier(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSaving('supplier');
+    setError('');
+    setNotice('');
+    try {
+      await api<Supplier>('/purchasing/suppliers', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: supplierForm.name.trim(),
+          email: cleanText(supplierForm.email),
+          phone: cleanText(supplierForm.phone),
+          contactName: cleanText(supplierForm.contactName),
+          address: cleanText(supplierForm.address),
+          notes: cleanText(supplierForm.notes),
+        }),
+      });
+      setNotice(`${supplierForm.name.trim()} was added as a supplier.`);
+      setSupplierForm(emptySupplierForm);
+      await loadDashboard();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to save supplier');
+    } finally {
+      setSaving('');
+    }
+  }
+
+  async function saveInventoryItem(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSaving('inventory');
+    setError('');
+    setNotice('');
+    try {
+      await api<InventoryItem>('/purchasing/inventory', {
+        method: 'POST',
+        body: JSON.stringify({
+          sku: inventoryForm.sku.trim(),
+          name: inventoryForm.name.trim(),
+          description: cleanText(inventoryForm.description),
+          quantity: Number(inventoryForm.quantity || 0),
+          reorderLevel: Number(inventoryForm.reorderLevel || 0),
+          unitCost: Number(inventoryForm.unitCost || 0),
+          supplierId: cleanText(inventoryForm.supplierId),
+        }),
+      });
+      setNotice(`${inventoryForm.name.trim()} was added to inventory.`);
+      setInventoryForm({ ...emptyInventoryForm, supplierId: suppliers[0]?.id ?? '' });
+      await loadDashboard();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to save inventory item');
+    } finally {
+      setSaving('');
+    }
+  }
+
+  function choosePurchaseInventory(itemId: string) {
+    const item = inventoryItems.find((record) => record.id === itemId);
+    setPurchaseOrderForm((current) => ({
+      ...current,
+      inventoryItemId: itemId,
+      description: item?.name ?? current.description,
+      unitCost: item ? String(item.unitCost) : current.unitCost,
+      supplierId: item?.supplier?.id ?? current.supplierId,
+    }));
+  }
+
+  async function createPurchaseOrder(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSaving('purchase-order');
+    setError('');
+    setNotice('');
+    try {
+      const order = await api<PurchaseOrder>('/purchasing/purchase-orders', {
+        method: 'POST',
+        body: JSON.stringify({
+          supplierId: purchaseOrderForm.supplierId,
+          expectedAt: cleanText(purchaseOrderForm.expectedAt),
+          tax: Number(purchaseOrderForm.tax || 0),
+          notes: cleanText(purchaseOrderForm.notes),
+          items: [{
+            inventoryItemId: cleanText(purchaseOrderForm.inventoryItemId),
+            description: purchaseOrderForm.description.trim(),
+            quantity: Number(purchaseOrderForm.quantity),
+            unitCost: Number(purchaseOrderForm.unitCost),
+          }],
+        }),
+      });
+      setNotice(`${order.orderNo} was created for ${currency(order.total)}.`);
+      setPurchaseOrderForm({ ...emptyPurchaseOrderForm, supplierId: suppliers[0]?.id ?? '', inventoryItemId: inventoryItems[0]?.id ?? '' });
+      await loadDashboard();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to create purchase order');
+    } finally {
+      setSaving('');
+    }
+  }
+
+  async function updatePurchaseOrderStatus(orderId: string, status: PurchaseOrderStatus) {
+    setSaving(orderId);
+    setError('');
+    setNotice('');
+    try {
+      await api<PurchaseOrder>(`/purchasing/purchase-orders/${orderId}/status`, { method: 'PATCH', body: JSON.stringify({ status }) });
+      setNotice(`Purchase order was marked ${labelFromEnum(status)}.`);
+      await loadDashboard();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to update purchase order');
     } finally {
       setSaving('');
     }
@@ -757,7 +900,7 @@ export default function DashboardPage() {
       <aside className="sidebar">
         <div className="brand light"><span>R</span> RBS</div>
         <nav>
-          {['Overview', 'Company', 'Team', 'Employees', 'Customers', 'Sales', 'Quotes', 'Projects', 'Products', 'Invoices', 'Payments', 'Expenses', 'Reports'].map((item) => <a className="active" key={item}>{item}</a>)}
+          {['Overview', 'Company', 'Team', 'Employees', 'Customers', 'Sales', 'Quotes', 'Inventory', 'Purchasing', 'Projects', 'Products', 'Invoices', 'Payments', 'Expenses', 'Reports'].map((item) => <a className="active" key={item}>{item}</a>)}
         </nav>
         <button className="signOut" onClick={signOut}>Sign out</button>
       </aside>
@@ -786,6 +929,8 @@ export default function DashboardPage() {
           <article><span>Open pipeline</span><b>{loading ? '-' : currency(summary?.metrics.pipelineValue)}</b><small>{summary?.metrics.openDeals ?? 0} open deals</small></article>
           <article><span>Won deals</span><b>{loading ? '-' : currency(summary?.metrics.wonDealValue)}</b><small>{summary?.metrics.conversionRate ?? 0}% conversion</small></article>
           <article><span>Open quotes</span><b>{openQuotes.length}</b><small>{quotes.length} total estimates</small></article>
+          <article><span>Low stock</span><b>{lowStockItems.length}</b><small>{inventoryItems.length} inventory items</small></article>
+          <article><span>Open purchase orders</span><b>{openPurchaseOrders.length}</b><small>{purchaseOrders.length} total orders</small></article>
           <article><span>Customers</span><b>{summary?.metrics.customers ?? (loading ? '-' : 0)}</b><small>{summary?.metrics.activeCustomers ?? 0} active</small></article>
           <article><span>Open invoices</span><b>{summary?.metrics.openInvoices ?? (loading ? '-' : 0)}</b><small>{summary?.metrics.invoices ?? 0} total</small></article>
           <article><span>Total employees</span><b>{summary?.metrics.employees ?? (loading ? '-' : 0)}</b><small>{summary?.metrics.activeEmployees ?? 0} active</small></article>
@@ -1042,6 +1187,61 @@ export default function DashboardPage() {
         <section className="recordsGrid">
           <article className="panel"><div className="panelHeading"><div><p className="eyebrow">CRM records</p><h2>Customers</h2></div><span className="badge">{customers.length} total</span></div><div className="tableWrap"><table className="dataTable"><thead><tr><th>Name</th><th>Company</th><th>Contact</th><th>Status</th></tr></thead><tbody>{customers.map((customer) => <tr key={customer.id}><td><b>{customer.name}</b></td><td>{customer.companyName || '-'}</td><td>{customer.email || customer.phone || '-'}</td><td><span className={`statusPill ${customer.status.toLowerCase()}`}>{customer.status.toLowerCase()}</span></td></tr>)}</tbody></table></div></article>
           <article className="panel"><div className="panelHeading"><div><p className="eyebrow">Catalog records</p><h2>Products/services</h2></div><span className="badge">{products.length} total</span></div><div className="tableWrap"><table className="dataTable"><thead><tr><th>Name</th><th>Type</th><th>Price</th><th>Status</th></tr></thead><tbody>{products.map((product) => <tr key={product.id}><td><b>{product.name}</b><small>{product.description || ''}</small></td><td>{product.type.toLowerCase()}</td><td>{currency(product.unitPrice)}</td><td><span className={`statusPill ${product.active ? 'active' : 'inactive'}`}>{product.active ? 'active' : 'inactive'}</span></td></tr>)}</tbody></table></div></article>
+        </section>
+
+        <section className="recordsGrid">
+          <article className="panel">
+            <div className="panelHeading"><div><p className="eyebrow">Suppliers</p><h2>Add supplier</h2></div><span className="badge">{suppliers.length} vendors</span></div>
+            <form className="companyForm" onSubmit={saveSupplier}>
+              <label>Name<input required minLength={2} value={supplierForm.name} onChange={(event) => setSupplierForm((current) => ({ ...current, name: event.target.value }))} /></label>
+              <label>Contact person<input value={supplierForm.contactName} onChange={(event) => setSupplierForm((current) => ({ ...current, contactName: event.target.value }))} /></label>
+              <label>Email<input type="email" value={supplierForm.email} onChange={(event) => setSupplierForm((current) => ({ ...current, email: event.target.value }))} /></label>
+              <label>Phone<input value={supplierForm.phone} onChange={(event) => setSupplierForm((current) => ({ ...current, phone: event.target.value }))} /></label>
+              <label className="wideField">Address<input value={supplierForm.address} onChange={(event) => setSupplierForm((current) => ({ ...current, address: event.target.value }))} /></label>
+              <label className="wideField">Notes<textarea value={supplierForm.notes} onChange={(event) => setSupplierForm((current) => ({ ...current, notes: event.target.value }))} /></label>
+              <button className="button" disabled={saving === 'supplier'}>{saving === 'supplier' ? 'Saving...' : 'Add supplier'}</button>
+            </form>
+          </article>
+          <article className="panel">
+            <div className="panelHeading"><div><p className="eyebrow">Inventory</p><h2>Add stock item</h2></div><span className="badge">{lowStockItems.length} low stock</span></div>
+            <form className="companyForm" onSubmit={saveInventoryItem}>
+              <label>SKU<input required minLength={2} value={inventoryForm.sku} onChange={(event) => setInventoryForm((current) => ({ ...current, sku: event.target.value }))} /></label>
+              <label>Name<input required minLength={2} value={inventoryForm.name} onChange={(event) => setInventoryForm((current) => ({ ...current, name: event.target.value }))} /></label>
+              <label>Supplier<select value={inventoryForm.supplierId} onChange={(event) => setInventoryForm((current) => ({ ...current, supplierId: event.target.value }))}><option value="">No supplier</option>{suppliers.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.name}</option>)}</select></label>
+              <label>Quantity<input required type="number" min="0" step="0.01" value={inventoryForm.quantity} onChange={(event) => setInventoryForm((current) => ({ ...current, quantity: event.target.value }))} /></label>
+              <label>Reorder level<input required type="number" min="0" step="0.01" value={inventoryForm.reorderLevel} onChange={(event) => setInventoryForm((current) => ({ ...current, reorderLevel: event.target.value }))} /></label>
+              <label>Unit cost<input required type="number" min="0" step="0.01" value={inventoryForm.unitCost} onChange={(event) => setInventoryForm((current) => ({ ...current, unitCost: event.target.value }))} /></label>
+              <label className="wideField">Description<textarea value={inventoryForm.description} onChange={(event) => setInventoryForm((current) => ({ ...current, description: event.target.value }))} /></label>
+              <button className="button" disabled={saving === 'inventory'}>{saving === 'inventory' ? 'Saving...' : 'Add inventory item'}</button>
+            </form>
+          </article>
+        </section>
+
+        <section className="recordsGrid">
+          <article className="panel widePanel">
+            <div className="panelHeading"><div><p className="eyebrow">Stock control</p><h2>Inventory records</h2></div><span className="badge">{inventoryItems.length} items</span></div>
+            <div className="tableWrap"><table className="dataTable"><thead><tr><th>Item</th><th>Supplier</th><th>Qty</th><th>Reorder</th><th>Unit cost</th><th>Status</th></tr></thead><tbody>{inventoryItems.map((item) => <tr key={item.id}><td><b>{item.name}</b><small>{item.sku}{item.description ? ` Â· ${item.description}` : ''}</small></td><td>{item.supplier?.name || '-'}</td><td>{item.quantity}</td><td>{item.reorderLevel}</td><td>{currency(item.unitCost)}</td><td><span className={`statusPill ${item.quantity <= item.reorderLevel ? 'overdue' : 'active'}`}>{item.quantity <= item.reorderLevel ? 'reorder' : 'in stock'}</span></td></tr>)}</tbody></table></div>
+          </article>
+          <article className="panel">
+            <div className="panelHeading"><div><p className="eyebrow">Purchasing</p><h2>Create purchase order</h2></div><span className="badge">{openPurchaseOrders.length} open</span></div>
+            <form className="companyForm" onSubmit={createPurchaseOrder}>
+              <label>Supplier<select required value={purchaseOrderForm.supplierId} onChange={(event) => setPurchaseOrderForm((current) => ({ ...current, supplierId: event.target.value }))}><option value="">Choose supplier</option>{suppliers.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.name}</option>)}</select></label>
+              <label>Inventory item<select value={purchaseOrderForm.inventoryItemId} onChange={(event) => choosePurchaseInventory(event.target.value)}><option value="">Custom item</option>{inventoryItems.map((item) => <option key={item.id} value={item.id}>{item.name} - {item.sku}</option>)}</select></label>
+              <label>Description<input required minLength={2} value={purchaseOrderForm.description} onChange={(event) => setPurchaseOrderForm((current) => ({ ...current, description: event.target.value }))} /></label>
+              <label>Quantity<input required type="number" min="0.01" step="0.01" value={purchaseOrderForm.quantity} onChange={(event) => setPurchaseOrderForm((current) => ({ ...current, quantity: event.target.value }))} /></label>
+              <label>Unit cost<input required type="number" min="0" step="0.01" value={purchaseOrderForm.unitCost} onChange={(event) => setPurchaseOrderForm((current) => ({ ...current, unitCost: event.target.value }))} /></label>
+              <label>Tax<input type="number" min="0" step="0.01" value={purchaseOrderForm.tax} onChange={(event) => setPurchaseOrderForm((current) => ({ ...current, tax: event.target.value }))} /></label>
+              <label>Expected date<input type="date" value={purchaseOrderForm.expectedAt} onChange={(event) => setPurchaseOrderForm((current) => ({ ...current, expectedAt: event.target.value }))} /></label>
+              <label className="wideField">Notes<textarea value={purchaseOrderForm.notes} onChange={(event) => setPurchaseOrderForm((current) => ({ ...current, notes: event.target.value }))} /></label>
+              <button className="button" disabled={saving === 'purchase-order' || suppliers.length === 0}>{saving === 'purchase-order' ? 'Creating...' : 'Create purchase order'}</button>
+            </form>
+          </article>
+        </section>
+
+        <section className="panel">
+          <div className="panelHeading"><div><p className="eyebrow">Purchase orders</p><h2>Supplier order tracker</h2></div><span className="badge">{purchaseOrders.length} orders</span></div>
+          <div className="tableWrap"><table className="dataTable"><thead><tr><th>Order</th><th>Supplier</th><th>Total</th><th>Expected</th><th>Status</th><th>Action</th></tr></thead><tbody>{purchaseOrders.map((order) => <tr key={order.id}><td><b>{order.orderNo}</b></td><td>{order.supplier.name}</td><td>{currency(order.total)}</td><td>{order.expectedAt ? new Date(order.expectedAt).toLocaleDateString() : '-'}</td><td><span className={`statusPill ${order.status.toLowerCase()}`}>{labelFromEnum(order.status)}</span></td><td><select value={order.status} onChange={(event) => updatePurchaseOrderStatus(order.id, event.target.value as PurchaseOrderStatus)} disabled={saving === order.id}>{purchaseOrderStatuses.map((status) => <option key={status} value={status}>{labelFromEnum(status)}</option>)}</select></td></tr>)}</tbody></table></div>
+          {purchaseOrders.length === 0 && <div className="emptyState"><h3>No purchase orders yet</h3><p className="muted">Create purchase orders to track stock you are buying from suppliers.</p></div>}
         </section>
 
         <section className="recordsGrid">
