@@ -70,6 +70,7 @@ export class BillingController {
 
     return {
       subscription,
+      access: this.subscriptionAccess(subscription),
       plans: (Object.keys(planPrices) as SubscriptionPlan[]).map((plan) => ({
         plan,
         priceMonthly: planPrices[plan],
@@ -191,6 +192,33 @@ export class BillingController {
       },
       update: {},
     });
+  }
+
+  private subscriptionAccess(subscription: SubscriptionRecord) {
+    if (subscription.status === 'ACTIVE') {
+      return { canUseSuite: true, level: 'ok', message: 'Subscription is active.' };
+    }
+    if (subscription.status === 'TRIALING') {
+      return {
+        canUseSuite: true,
+        level: 'warn',
+        message: subscription.trialEndsAt
+          ? `Trial access is active until ${subscription.trialEndsAt.toISOString()}.`
+          : 'Trial access is active.',
+      };
+    }
+    if (subscription.status === 'PAST_DUE') {
+      return {
+        canUseSuite: false,
+        level: 'block',
+        message: 'Payment is past due. Update billing to restore business actions.',
+      };
+    }
+    return {
+      canUseSuite: false,
+      level: 'block',
+      message: 'Subscription is canceled. Choose a plan to restore business actions.',
+    };
   }
 
   private async createStripeCustomer(stripeSecretKey: string, input: { companyId: string; companyName: string; email?: string }) {

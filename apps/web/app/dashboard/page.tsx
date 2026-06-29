@@ -131,6 +131,7 @@ type BillingStatus = {
     trialEndsAt?: string | null;
     currentPeriodEndsAt?: string | null;
   };
+  access: { canUseSuite: boolean; level: 'ok' | 'warn' | 'block'; message: string };
   plans: { plan: SubscriptionPlan; priceMonthly: number; features: string[] }[];
   checkoutReady: boolean;
 };
@@ -252,7 +253,9 @@ export default function DashboardPage() {
   const companyName = company?.name ?? summary?.company.name ?? 'your company';
   const currentRole = currentUser?.role ?? 'EMPLOYEE';
   const isOwnerOrAdmin = currentRole === 'OWNER' || currentRole === 'ADMIN';
-  const canManageBusiness = isOwnerOrAdmin || currentRole === 'MANAGER';
+  const canUseSuite = billing?.access.canUseSuite ?? true;
+  const canManageBusiness = (isOwnerOrAdmin || currentRole === 'MANAGER') && canUseSuite;
+  const billingBlocked = billing?.access.level === 'block';
   const navItems = ['Overview', 'Company', 'Team', 'Employees', 'Customers', 'Sales', 'Quotes', 'Inventory', 'Purchasing', 'Projects', 'Products', 'Invoices', 'Payments', 'Expenses', 'Reports', ...(isOwnerOrAdmin ? ['Billing', 'Audit'] : [])];
   const totalTasks = summary?.metrics.tasks ?? 0;
   const onboardingItems = [
@@ -1137,7 +1140,12 @@ export default function DashboardPage() {
 
         {error && <p className="error">{error}</p>}
         {notice && <p className="success">{notice}</p>}
-        {!canManageBusiness && <p className="muted">You are signed in with employee access. Create, billing, admin, and export controls are hidden; task status updates remain available.</p>}
+        {billing && <p className={billing.access.level === 'block' ? 'error' : billing.access.level === 'warn' ? 'success' : 'muted'}>
+          Billing: {billing.access.message}
+        </p>}
+        {billingBlocked && isOwnerOrAdmin && <p className="muted">Billing remains available so an owner/admin can restore access.</p>}
+        {!canManageBusiness && !billingBlocked && <p className="muted">You are signed in with employee access. Create, billing, admin, and export controls are hidden; task status updates remain available.</p>}
+        {billingBlocked && !isOwnerOrAdmin && <p className="muted">Business actions are limited until an owner/admin restores subscription access.</p>}
 
         <div className="stats">
           <article><span>Revenue collected</span><b>{loading ? '-' : currency(summary?.metrics.revenue)}</b><small>Recorded payments</small></article>
@@ -1227,6 +1235,7 @@ export default function DashboardPage() {
           <div className="stats">
             <article><span>Current plan</span><b>{billing ? labelFromEnum(billing.subscription.plan) : '-'}</b><small>Account subscription tier</small></article>
             <article><span>Trial ends</span><b>{billing?.subscription.trialEndsAt ? new Date(billing.subscription.trialEndsAt).toLocaleDateString() : '-'}</b><small>Default launch trial window</small></article>
+            <article><span>Access</span><b>{billing?.access.canUseSuite ? 'Open' : 'Limited'}</b><small>{billing?.access.message ?? 'Subscription access status'}</small></article>
             <article><span>Checkout</span><b>{billing?.checkoutReady ? 'Ready' : 'Setup'}</b><small>{billing?.checkoutReady ? 'Stripe keys detected' : 'Add Stripe keys before live payments'}</small></article>
           </div>
           <div className="recordsGrid">
