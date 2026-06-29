@@ -426,6 +426,21 @@ export default function DashboardPage() {
     }
   }
 
+  async function updateCustomerStatus(customerId: string, status: CustomerStatus) {
+    setSaving(customerId);
+    setError('');
+    setNotice('');
+    try {
+      await api<Customer>(`/customers/${customerId}`, { method: 'PATCH', body: JSON.stringify({ status }) });
+      setNotice(`Customer status updated to ${labelFromEnum(status)}.`);
+      await loadDashboard();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to update customer');
+    } finally {
+      setSaving('');
+    }
+  }
+
   async function saveDeal(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSaving('deal');
@@ -488,6 +503,21 @@ export default function DashboardPage() {
       await loadDashboard();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Unable to save product or service');
+    } finally {
+      setSaving('');
+    }
+  }
+
+  async function updateProductActive(productId: string, active: boolean) {
+    setSaving(productId);
+    setError('');
+    setNotice('');
+    try {
+      await api<Product>(`/products/${productId}`, { method: 'PATCH', body: JSON.stringify({ active }) });
+      setNotice(`Product/service was marked ${active ? 'active' : 'inactive'}.`);
+      await loadDashboard();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to update product or service');
     } finally {
       setSaving('');
     }
@@ -819,6 +849,21 @@ export default function DashboardPage() {
     }
   }
 
+  async function updateExpenseCategory(expenseId: string, category: ExpenseCategory) {
+    setSaving(expenseId);
+    setError('');
+    setNotice('');
+    try {
+      await api<Expense>(`/expenses/${expenseId}`, { method: 'PATCH', body: JSON.stringify({ category }) });
+      setNotice(`Expense moved to ${categoryLabel(category)}.`);
+      await loadDashboard();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to update expense');
+    } finally {
+      setSaving('');
+    }
+  }
+
   async function saveProject(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSaving('project');
@@ -842,6 +887,21 @@ export default function DashboardPage() {
       await loadDashboard();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Unable to save project');
+    } finally {
+      setSaving('');
+    }
+  }
+
+  async function updateProjectStatus(projectId: string, status: ProjectStatus) {
+    setSaving(projectId);
+    setError('');
+    setNotice('');
+    try {
+      await api<Project>(`/projects/${projectId}`, { method: 'PATCH', body: JSON.stringify({ status }) });
+      setNotice(`Project moved to ${labelFromEnum(status)}.`);
+      await loadDashboard();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to update project');
     } finally {
       setSaving('');
     }
@@ -1285,7 +1345,7 @@ export default function DashboardPage() {
                     <b>{project.name}</b>
                     <small>{project.customer?.name || 'Internal'}{project.dueDate ? ` · due ${new Date(project.dueDate).toLocaleDateString()}` : ''}</small>
                   </div>
-                  <span className={`statusPill ${project.status.toLowerCase()}`}>{labelFromEnum(project.status)}</span>
+                  {canManageBusiness ? <select value={project.status} onChange={(event) => updateProjectStatus(project.id, event.target.value as ProjectStatus)} disabled={saving === project.id}>{projectStatuses.map((status) => <option key={status} value={status}>{labelFromEnum(status)}</option>)}</select> : <span className={`statusPill ${project.status.toLowerCase()}`}>{labelFromEnum(project.status)}</span>}
                 </div>
                 <div className="taskList">
                   {project.tasks.length === 0 ? <p className="muted">No tasks yet</p> : project.tasks.map((task) => (
@@ -1306,8 +1366,8 @@ export default function DashboardPage() {
         </section>
 
         <section className="recordsGrid">
-          <article className="panel"><div className="panelHeading"><div><p className="eyebrow">CRM records</p><h2>Customers</h2></div><span className="badge">{customers.length} total</span></div><div className="tableWrap"><table className="dataTable"><thead><tr><th>Name</th><th>Company</th><th>Contact</th><th>Status</th></tr></thead><tbody>{customers.map((customer) => <tr key={customer.id}><td><b>{customer.name}</b></td><td>{customer.companyName || '-'}</td><td>{customer.email || customer.phone || '-'}</td><td><span className={`statusPill ${customer.status.toLowerCase()}`}>{customer.status.toLowerCase()}</span></td></tr>)}</tbody></table></div></article>
-          <article className="panel"><div className="panelHeading"><div><p className="eyebrow">Catalog records</p><h2>Products/services</h2></div><span className="badge">{products.length} total</span></div><div className="tableWrap"><table className="dataTable"><thead><tr><th>Name</th><th>Type</th><th>Price</th><th>Status</th></tr></thead><tbody>{products.map((product) => <tr key={product.id}><td><b>{product.name}</b><small>{product.description || ''}</small></td><td>{product.type.toLowerCase()}</td><td>{currency(product.unitPrice)}</td><td><span className={`statusPill ${product.active ? 'active' : 'inactive'}`}>{product.active ? 'active' : 'inactive'}</span></td></tr>)}</tbody></table></div></article>
+          <article className="panel"><div className="panelHeading"><div><p className="eyebrow">CRM records</p><h2>Customers</h2></div><span className="badge">{customers.length} total</span></div><div className="tableWrap"><table className="dataTable"><thead><tr><th>Name</th><th>Company</th><th>Contact</th><th>Status</th></tr></thead><tbody>{customers.map((customer) => <tr key={customer.id}><td><b>{customer.name}</b></td><td>{customer.companyName || '-'}</td><td>{customer.email || customer.phone || '-'}</td><td>{canManageBusiness ? <select value={customer.status} onChange={(event) => updateCustomerStatus(customer.id, event.target.value as CustomerStatus)} disabled={saving === customer.id}><option value="LEAD">Lead</option><option value="ACTIVE">Active</option><option value="INACTIVE">Inactive</option></select> : <span className={`statusPill ${customer.status.toLowerCase()}`}>{customer.status.toLowerCase()}</span>}</td></tr>)}</tbody></table></div></article>
+          <article className="panel"><div className="panelHeading"><div><p className="eyebrow">Catalog records</p><h2>Products/services</h2></div><span className="badge">{products.length} total</span></div><div className="tableWrap"><table className="dataTable"><thead><tr><th>Name</th><th>Type</th><th>Price</th><th>Status</th></tr></thead><tbody>{products.map((product) => <tr key={product.id}><td><b>{product.name}</b><small>{product.description || ''}</small></td><td>{product.type.toLowerCase()}</td><td>{currency(product.unitPrice)}</td><td>{canManageBusiness ? <button className="ghostButton" onClick={() => updateProductActive(product.id, !product.active)} disabled={saving === product.id}>{product.active ? 'Deactivate' : 'Activate'}</button> : <span className={`statusPill ${product.active ? 'active' : 'inactive'}`}>{product.active ? 'active' : 'inactive'}</span>}</td></tr>)}</tbody></table></div></article>
         </section>
 
         {canManageBusiness && <section className="recordsGrid">
@@ -1420,7 +1480,7 @@ export default function DashboardPage() {
 
           <article className="panel">
             <div className="panelHeading"><div><p className="eyebrow">Expense records</p><h2>Spending log</h2></div><span className="badge">{expenses.length} records</span></div>
-            <div className="tableWrap"><table className="dataTable"><thead><tr><th>Vendor</th><th>Category</th><th>Amount</th><th>Date</th></tr></thead><tbody>{expenses.map((expense) => <tr key={expense.id}><td><b>{expense.vendor}</b><small>{expense.description || expense.receiptUrl || ''}</small></td><td><span className={`statusPill ${expense.category.toLowerCase()}`}>{categoryLabel(expense.category)}</span></td><td>{currency(expense.amount)}</td><td>{new Date(expense.spentAt).toLocaleDateString()}</td></tr>)}</tbody></table></div>
+            <div className="tableWrap"><table className="dataTable"><thead><tr><th>Vendor</th><th>Category</th><th>Amount</th><th>Date</th></tr></thead><tbody>{expenses.map((expense) => <tr key={expense.id}><td><b>{expense.vendor}</b><small>{expense.description || expense.receiptUrl || ''}</small></td><td>{canManageBusiness ? <select value={expense.category} onChange={(event) => updateExpenseCategory(expense.id, event.target.value as ExpenseCategory)} disabled={saving === expense.id}>{expenseCategories.map((category) => <option key={category} value={category}>{categoryLabel(category)}</option>)}</select> : <span className={`statusPill ${expense.category.toLowerCase()}`}>{categoryLabel(expense.category)}</span>}</td><td>{currency(expense.amount)}</td><td>{new Date(expense.spentAt).toLocaleDateString()}</td></tr>)}</tbody></table></div>
             {expenses.length === 0 && <div className="emptyState"><h3>No expenses yet</h3><p className="muted">Record expenses to unlock your net profit view.</p></div>}
           </article>
         </section>
