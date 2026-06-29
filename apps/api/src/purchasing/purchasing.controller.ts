@@ -2,6 +2,7 @@ import { BadRequestException, Body, Controller, Get, NotFoundException, Param, P
 import { Prisma, PurchaseOrderStatus } from '@prisma/client';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { AuthenticatedUser, JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { ensureManagerOrAbove } from '../auth/roles';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateInventoryItemDto, CreatePurchaseOrderDto, CreateSupplierDto, UpdatePurchaseOrderStatusDto } from './purchasing.dto';
 
@@ -49,6 +50,7 @@ export class PurchasingController {
 
   @Post('suppliers')
   async createSupplier(@CurrentUser() user: AuthenticatedUser, @Body() input: CreateSupplierDto) {
+    ensureManagerOrAbove(user, 'create suppliers');
     const supplier = await this.prisma.supplier.create({ data: { ...input, companyId: user.companyId } });
     await this.prisma.auditLog.create({
       data: {
@@ -66,6 +68,7 @@ export class PurchasingController {
 
   @Post('inventory')
   async createInventory(@CurrentUser() user: AuthenticatedUser, @Body() input: CreateInventoryItemDto) {
+    ensureManagerOrAbove(user, 'create inventory items');
     if (input.supplierId) {
       const supplier = await this.prisma.supplier.findFirst({ where: { id: input.supplierId, companyId: user.companyId } });
       if (!supplier) throw new NotFoundException('Supplier not found');
@@ -106,6 +109,7 @@ export class PurchasingController {
 
   @Post('purchase-orders')
   async createPurchaseOrder(@CurrentUser() user: AuthenticatedUser, @Body() input: CreatePurchaseOrderDto) {
+    ensureManagerOrAbove(user, 'create purchase orders');
     const supplier = await this.prisma.supplier.findFirst({ where: { id: input.supplierId, companyId: user.companyId } });
     if (!supplier) throw new NotFoundException('Supplier not found');
     for (const item of input.items) {
@@ -162,6 +166,7 @@ export class PurchasingController {
 
   @Patch('purchase-orders/:id/status')
   async updatePurchaseOrderStatus(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string, @Body() input: UpdatePurchaseOrderStatusDto) {
+    ensureManagerOrAbove(user, 'update purchase order statuses');
     const existing = await this.prisma.purchaseOrder.findFirst({ where: { id, companyId: user.companyId }, include: { items: true } });
     if (!existing) throw new NotFoundException('Purchase order not found');
 

@@ -1,6 +1,7 @@
 import { Body, Controller, Get, NotFoundException, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { AuthenticatedUser, JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { ensureManagerOrAbove } from '../auth/roles';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateExpenseDto, UpdateExpenseDto } from './expenses.dto';
 
@@ -24,6 +25,7 @@ export class ExpensesController {
 
   @Post()
   async create(@CurrentUser() user: AuthenticatedUser, @Body() input: CreateExpenseDto) {
+    ensureManagerOrAbove(user, 'create expenses');
     const expense = await this.prisma.expense.create({
       data: {
         vendor: input.vendor,
@@ -40,6 +42,7 @@ export class ExpensesController {
 
   @Patch(':id')
   async update(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string, @Body() input: UpdateExpenseDto) {
+    ensureManagerOrAbove(user, 'update expenses');
     const existing = await this.prisma.expense.findFirst({ where: { id, companyId: user.companyId } });
     if (!existing) throw new NotFoundException('Expense not found');
     const expense = await this.prisma.expense.update({

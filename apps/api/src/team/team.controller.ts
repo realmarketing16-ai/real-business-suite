@@ -3,6 +3,7 @@ import { Role } from '@prisma/client';
 import { hash } from 'bcryptjs';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { AuthenticatedUser, JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { ensureOwnerOrAdmin } from '../auth/roles';
 import { EmailService } from '../email/email.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateTeamMemberDto, UpdateTeamMemberDto } from './team.dto';
@@ -99,8 +100,6 @@ export class TeamController {
   }
 
   private ensureCanManageTeam(user: AuthenticatedUser) {
-    if (user.role !== Role.OWNER && user.role !== Role.ADMIN) {
-      throw new ForbiddenException('Only owners and admins can manage team members');
-    }
+    ensureOwnerOrAdmin(user, 'manage team members');
   }
 }

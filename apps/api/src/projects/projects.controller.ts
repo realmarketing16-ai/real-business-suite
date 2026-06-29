@@ -1,6 +1,7 @@
 import { Body, Controller, Get, NotFoundException, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { AuthenticatedUser, JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { ensureManagerOrAbove } from '../auth/roles';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProjectDto, CreateTaskDto, UpdateProjectDto, UpdateTaskDto } from './projects.dto';
 
@@ -28,6 +29,7 @@ export class ProjectsController {
 
   @Post()
   async create(@CurrentUser() user: AuthenticatedUser, @Body() input: CreateProjectDto) {
+    ensureManagerOrAbove(user, 'create projects');
     if (input.customerId) {
       const customer = await this.prisma.customer.findFirst({ where: { id: input.customerId, companyId: user.companyId } });
       if (!customer) throw new NotFoundException('Customer not found');
@@ -51,6 +53,7 @@ export class ProjectsController {
 
   @Patch(':id')
   async update(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string, @Body() input: UpdateProjectDto) {
+    ensureManagerOrAbove(user, 'update projects');
     await this.ensureProject(user.companyId, id);
     const project = await this.prisma.project.update({
       where: { id },
@@ -66,6 +69,7 @@ export class ProjectsController {
 
   @Post(':id/tasks')
   async createTask(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string, @Body() input: CreateTaskDto) {
+    ensureManagerOrAbove(user, 'create tasks');
     await this.ensureProject(user.companyId, id);
     return this.prisma.task.create({
       data: {

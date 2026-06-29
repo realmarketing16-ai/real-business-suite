@@ -1,7 +1,7 @@
-import { Controller, ForbiddenException, Get, Param, Post, UseGuards } from '@nestjs/common';
-import { Role } from '@prisma/client';
+import { Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { AuthenticatedUser, JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { ensureOwnerOrAdmin } from '../auth/roles';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmailService } from './email.service';
 
@@ -37,8 +37,6 @@ export class EmailController {
   }
 
   private ensureCanManageEmail(user: AuthenticatedUser) {
-    if (user.role !== Role.OWNER && user.role !== Role.ADMIN) {
-      throw new ForbiddenException('Only owners and admins can manage email outbox');
-    }
+    ensureOwnerOrAdmin(user, 'manage email outbox');
   }
 }
