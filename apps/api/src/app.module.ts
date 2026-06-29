@@ -2,8 +2,11 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { AuthModule } from './auth/auth.module';
 import { CompaniesModule } from './companies/companies.module';
+import { CustomersModule } from './customers/customers.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { EmployeesModule } from './employees/employees.module';
+import { InvoicesModule } from './invoices/invoices.module';
+import { ProductsModule } from './products/products.module';
 import { HealthController } from './health.controller';
 import { PrismaModule } from './prisma/prisma.module';
 
@@ -14,6 +17,9 @@ import { PrismaModule } from './prisma/prisma.module';
     AuthModule,
     CompaniesModule,
     EmployeesModule,
+    CustomersModule,
+    ProductsModule,
+    InvoicesModule,
     DashboardModule,
   ],
   controllers: [HealthController],
