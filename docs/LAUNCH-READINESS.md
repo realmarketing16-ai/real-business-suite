@@ -27,6 +27,7 @@ Use this checklist before letting real customers rely on Real Business Suite.
 - [ ] Team invite emails do not contain passwords.
 - [ ] Email sender domain is verified with provider.
 - [ ] Browser and API use HTTPS in production.
+- [ ] Auth rate limits tested for login and password reset endpoints.
 
 ## Data readiness
 
