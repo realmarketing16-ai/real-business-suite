@@ -52,6 +52,17 @@ enum DealStage {
   LOST
 }
 
+enum ExpenseCategory {
+  OPERATIONS
+  MARKETING
+  PAYROLL
+  SOFTWARE
+  RENT
+  TRAVEL
+  TAX
+  OTHER
+}
+
 model Company {
   id        String     @id @default(cuid())
   name      String
@@ -66,6 +77,7 @@ model Company {
   invoices  Invoice[]
   payments  Payment[]
   deals     Deal[]
+  expenses  Expense[]
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
 }
@@ -216,4 +228,22 @@ model Payment {
 
   @@index([companyId])
   @@index([invoiceId])
+}
+
+model Expense {
+  id          String          @id @default(cuid())
+  vendor      String
+  category    ExpenseCategory @default(OTHER)
+  amount      Decimal         @db.Decimal(12, 2)
+  spentAt     DateTime        @default(now())
+  description String?
+  receiptUrl  String?
+  companyId   String
+  company     Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([companyId])
+  @@index([companyId, category])
+  @@index([companyId, spentAt])
 }
