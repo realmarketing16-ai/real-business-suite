@@ -19,10 +19,11 @@ import { ReportsModule } from './reports/reports.module';
 import { TeamModule } from './team/team.module';
 import { HealthController } from './health.controller';
 import { PrismaModule } from './prisma/prisma.module';
+import { validateEnv } from './config/env.validation';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule.forRoot({ isGlobal: true, validate: validateEnv }),
     PrismaModule,
     AuditLogsModule,
     AuthModule,
