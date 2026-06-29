@@ -1,0 +1,3 @@
+ALTER TYPE "SubscriptionPlan" ADD VALUE IF NOT EXISTS 'FREE';
+
+ALTER TABLE "Subscription" ALTER COLUMN "plan" SET DEFAULT 'FREE';

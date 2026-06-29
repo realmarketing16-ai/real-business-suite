@@ -21,9 +21,9 @@ export class AuthService {
       await this.subscriptions(tx).create({
         data: {
           companyId: company.id,
-          plan: 'STARTER',
-          status: 'TRIALING',
-          trialEndsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+          plan: 'FREE',
+          status: 'ACTIVE',
+          trialEndsAt: null,
         },
       });
       const owner = await tx.user.create({
