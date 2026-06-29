@@ -118,6 +118,8 @@ type TeamMemberForm = { firstName: string; lastName: string; email: string; pass
 type AuditLog = { id: string; action: string; entityType: string; entityId?: string | null; description: string; actorName: string; createdAt: string };
 type EmailStatus = 'QUEUED' | 'SENT' | 'FAILED';
 type EmailMessage = { id: string; to: string; subject: string; bodyPreview: string; status: EmailStatus; relatedType?: string | null; createdAt: string };
+type ReadinessCheck = { key: string; label: string; status: 'PASS' | 'WARN' | 'FAIL'; detail: string };
+type ReadinessStatus = { status: 'READY' | 'NEEDS_REVIEW' | 'NOT_READY'; summary: { pass: number; warn: number; fail: number }; checkedAt: string; checks: ReadinessCheck[] };
 
 const emptyCompanyForm: CompanyForm = { name: '', industry: '', email: '', phone: '', address: '' };
 const emptyEmployeeForm: EmployeeForm = { employeeNo: '', firstName: '', lastName: '', email: '', phone: '', jobTitle: '', department: '', status: 'ACTIVE' };
@@ -195,6 +197,7 @@ export default function DashboardPage() {
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [emailMessages, setEmailMessages] = useState<EmailMessage[]>([]);
+  const [readiness, setReadiness] = useState<ReadinessStatus | null>(null);
   const [reports, setReports] = useState<ReportSummary | null>(null);
   const [employeeForm, setEmployeeForm] = useState<EmployeeForm>(emptyEmployeeForm);
   const [customerForm, setCustomerForm] = useState<CustomerForm>(emptyCustomerForm);
@@ -234,7 +237,7 @@ export default function DashboardPage() {
 
   async function loadDashboard() {
     setError('');
-    const [nextSummary, nextCompany, nextEmployees, nextCustomers, nextDeals, nextProducts, nextPurchasing, nextQuotes, nextInvoices, nextExpenses, nextProjects, nextTeamMembers, nextAuditLogs, nextEmailMessages, nextReports] = await Promise.all([
+    const [nextSummary, nextCompany, nextEmployees, nextCustomers, nextDeals, nextProducts, nextPurchasing, nextQuotes, nextInvoices, nextExpenses, nextProjects, nextTeamMembers, nextAuditLogs, nextEmailMessages, nextReadiness, nextReports] = await Promise.all([
       api<Summary>('/dashboard/summary'),
       api<Company>('/company'),
       api<Employee[]>('/employees'),
@@ -249,6 +252,7 @@ export default function DashboardPage() {
       api<TeamMember[]>('/team'),
       api<AuditLog[]>('/audit-logs').catch(() => []),
       api<EmailMessage[]>('/email/outbox').catch(() => []),
+      api<ReadinessStatus>('/readiness').catch(() => null),
       api<ReportSummary>('/reports/summary'),
     ]);
     setSummary(nextSummary);
@@ -268,6 +272,7 @@ export default function DashboardPage() {
     setTeamMembers(nextTeamMembers);
     setAuditLogs(nextAuditLogs);
     setEmailMessages(nextEmailMessages);
+    setReadiness(nextReadiness);
     setReports(nextReports);
     setInvoiceForm((current) => ({
       ...current,
@@ -1028,6 +1033,20 @@ export default function DashboardPage() {
             </dl>
           </article>
         </div>
+
+        <section className="panel">
+          <div className="panelHeading">
+            <div><p className="eyebrow">Launch readiness</p><h2>Production self-check</h2></div>
+            <span className={`badge ${readiness?.status?.toLowerCase() ?? ''}`}>{readiness ? labelFromEnum(readiness.status) : 'Not checked'}</span>
+          </div>
+          <div className="stats">
+            <article><span>Passed</span><b>{readiness?.summary.pass ?? '-'}</b><small>Healthy checks</small></article>
+            <article><span>Warnings</span><b>{readiness?.summary.warn ?? '-'}</b><small>Needs review</small></article>
+            <article><span>Failures</span><b>{readiness?.summary.fail ?? '-'}</b><small>Launch blockers</small></article>
+          </div>
+          <div className="tableWrap"><table className="dataTable"><thead><tr><th>Check</th><th>Status</th><th>Detail</th></tr></thead><tbody>{(readiness?.checks ?? []).map((item) => <tr key={item.key}><td><b>{item.label}</b></td><td><span className={`statusPill ${item.status.toLowerCase()}`}>{labelFromEnum(item.status)}</span></td><td>{item.detail}</td></tr>)}</tbody></table></div>
+          {!readiness && <div className="emptyState"><h3>Readiness unavailable</h3><p className="muted">Owners and admins will see production readiness checks here.</p></div>}
+        </section>
 
         <section className="recordsGrid">
           <article className="panel">
