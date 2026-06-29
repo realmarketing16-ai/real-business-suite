@@ -249,6 +249,18 @@ export default function DashboardPage() {
   const isOwnerOrAdmin = currentRole === 'OWNER' || currentRole === 'ADMIN';
   const canManageBusiness = isOwnerOrAdmin || currentRole === 'MANAGER';
   const navItems = ['Overview', 'Company', 'Team', 'Employees', 'Customers', 'Sales', 'Quotes', 'Inventory', 'Purchasing', 'Projects', 'Products', 'Invoices', 'Payments', 'Expenses', 'Reports', ...(isOwnerOrAdmin ? ['Audit'] : [])];
+  const totalTasks = summary?.metrics.tasks ?? 0;
+  const onboardingItems = [
+    { label: 'Complete company profile', done: Boolean(company?.email && company?.phone && company?.industry), detail: company?.email && company?.phone ? 'Company contact details are ready.' : 'Add company email, phone, and industry.' },
+    { label: 'Invite or confirm team access', done: teamMembers.length > 1 || employees.length > 0, detail: teamMembers.length > 1 ? `${teamMembers.length} users can access the suite.` : 'Add team users or employee records.' },
+    { label: 'Add customers or leads', done: customers.length > 0, detail: customers.length > 0 ? `${customers.length} customer records are active.` : 'Create your first customer or lead.' },
+    { label: 'Set up products/services', done: activeProducts.length > 0, detail: activeProducts.length > 0 ? `${activeProducts.length} active catalog items are ready.` : 'Add services, products, or packages.' },
+    { label: 'Create a project/task workflow', done: projects.length > 0 && totalTasks > 0, detail: projects.length > 0 ? `${projects.length} projects and ${totalTasks} tasks are tracked.` : 'Create a project and assign tasks.' },
+    { label: 'Start billing and finance tracking', done: invoices.length > 0 || expenses.length > 0, detail: invoices.length > 0 || expenses.length > 0 ? `${invoices.length} invoices and ${expenses.length} expenses are recorded.` : 'Create an invoice or record an expense.' },
+    { label: 'Review launch readiness', done: readiness?.status === 'READY', detail: readiness ? `Readiness status: ${labelFromEnum(readiness.status)}.` : isOwnerOrAdmin ? 'Run through the production self-check.' : 'Ask an owner/admin to review readiness.' },
+  ];
+  const completedOnboardingItems = onboardingItems.filter((item) => item.done).length;
+  const onboardingProgress = Math.round((completedOnboardingItems / onboardingItems.length) * 100);
 
   async function loadDashboard() {
     setError('');
@@ -1113,6 +1125,29 @@ export default function DashboardPage() {
             </dl>
           </article>
         </div>
+
+        <section className="panel">
+          <div className="panelHeading">
+            <div>
+              <p className="eyebrow">Launch setup</p>
+              <h2>{completedOnboardingItems} of {onboardingItems.length} essentials complete</h2>
+            </div>
+            <span className="badge">{onboardingProgress}% ready</span>
+          </div>
+          <div className="progress"><span style={{ width: `${onboardingProgress}%` }} /></div>
+          <div className="onboardingGrid">
+            {onboardingItems.map((item) => (
+              <article className={`onboardingItem ${item.done ? 'done' : ''}`} key={item.label}>
+                <span>{item.done ? '✓' : '!'}</span>
+                <div>
+                  <b>{item.label}</b>
+                  <small>{item.detail}</small>
+                </div>
+              </article>
+            ))}
+          </div>
+          {!canManageBusiness && <p className="muted">Your role is focused on viewing records and updating task status. Managers, admins, and owners can complete setup items.</p>}
+        </section>
 
         {isOwnerOrAdmin && <section className="panel">
           <div className="panelHeading">
