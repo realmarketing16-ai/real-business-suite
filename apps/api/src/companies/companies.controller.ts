@@ -15,7 +15,19 @@ export class CompaniesController {
   }
 
   @Patch()
-  update(@CurrentUser() user: AuthenticatedUser, @Body() input: UpdateCompanyDto) {
-    return this.prisma.company.update({ where: { id: user.companyId }, data: input });
+  async update(@CurrentUser() user: AuthenticatedUser, @Body() input: UpdateCompanyDto) {
+    const company = await this.prisma.company.update({ where: { id: user.companyId }, data: input });
+    await this.prisma.auditLog.create({
+      data: {
+        action: 'updated',
+        entityType: 'company',
+        entityId: company.id,
+        description: 'Updated company settings',
+        metadata: { fields: Object.keys(input) },
+        actorId: user.sub,
+        companyId: user.companyId,
+      },
+    });
+    return company;
   }
 }

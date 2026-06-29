@@ -48,8 +48,20 @@ export class PurchasingController {
   }
 
   @Post('suppliers')
-  createSupplier(@CurrentUser() user: AuthenticatedUser, @Body() input: CreateSupplierDto) {
-    return this.prisma.supplier.create({ data: { ...input, companyId: user.companyId } });
+  async createSupplier(@CurrentUser() user: AuthenticatedUser, @Body() input: CreateSupplierDto) {
+    const supplier = await this.prisma.supplier.create({ data: { ...input, companyId: user.companyId } });
+    await this.prisma.auditLog.create({
+      data: {
+        action: 'created',
+        entityType: 'supplier',
+        entityId: supplier.id,
+        description: `Added supplier ${supplier.name}`,
+        metadata: { email: supplier.email, phone: supplier.phone },
+        actorId: user.sub,
+        companyId: user.companyId,
+      },
+    });
+    return supplier;
   }
 
   @Post('inventory')
@@ -71,6 +83,17 @@ export class PurchasingController {
           companyId: user.companyId,
         },
         include: { supplier: true },
+      });
+      await this.prisma.auditLog.create({
+        data: {
+          action: 'created',
+          entityType: 'inventory_item',
+          entityId: item.id,
+          description: `Added inventory item ${item.name}`,
+          metadata: { sku: item.sku, quantity: money(item.quantity), reorderLevel: money(item.reorderLevel) },
+          actorId: user.sub,
+          companyId: user.companyId,
+        },
       });
       return serializeInventory(item);
     } catch (cause) {
@@ -117,6 +140,17 @@ export class PurchasingController {
         },
         include: { supplier: true, items: true },
       });
+      await this.prisma.auditLog.create({
+        data: {
+          action: 'created',
+          entityType: 'purchase_order',
+          entityId: order.id,
+          description: `Created purchase order ${order.orderNo}`,
+          metadata: { supplier: supplier.name, total: money(order.total) },
+          actorId: user.sub,
+          companyId: user.companyId,
+        },
+      });
       return serializePurchaseOrder(order);
     } catch (cause) {
       if (cause instanceof Prisma.PrismaClientKnownRequestError && cause.code === 'P2002') {
@@ -147,6 +181,17 @@ export class PurchasingController {
         data: { status: input.status },
         include: { supplier: true, items: true },
       });
+    });
+    await this.prisma.auditLog.create({
+      data: {
+        action: 'updated_status',
+        entityType: 'purchase_order',
+        entityId: order.id,
+        description: `Marked purchase order ${order.orderNo} as ${input.status.toLowerCase()}`,
+        metadata: { previousStatus: existing.status, status: input.status },
+        actorId: user.sub,
+        companyId: user.companyId,
+      },
     });
     return serializePurchaseOrder(order);
   }

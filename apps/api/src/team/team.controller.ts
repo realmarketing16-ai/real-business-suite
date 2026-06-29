@@ -43,6 +43,17 @@ export class TeamController {
         companyId: user.companyId,
       },
     });
+    await this.prisma.auditLog.create({
+      data: {
+        action: 'created',
+        entityType: 'team_member',
+        entityId: member.id,
+        description: `Added team member ${member.firstName} ${member.lastName}`,
+        metadata: { email: member.email, role: member.role },
+        actorId: user.sub,
+        companyId: user.companyId,
+      },
+    });
     return serializeUser(member);
   }
 
@@ -62,6 +73,17 @@ export class TeamController {
         firstName: input.firstName?.trim(),
         lastName: input.lastName?.trim(),
         role: input.role,
+      },
+    });
+    await this.prisma.auditLog.create({
+      data: {
+        action: 'updated',
+        entityType: 'team_member',
+        entityId: member.id,
+        description: `Updated team member ${member.firstName} ${member.lastName}`,
+        metadata: { role: member.role },
+        actorId: user.sub,
+        companyId: user.companyId,
       },
     });
     return serializeUser(member);
