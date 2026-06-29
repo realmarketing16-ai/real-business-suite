@@ -9,6 +9,7 @@ import { EmployeesModule } from './employees/employees.module';
 import { ExpensesModule } from './expenses/expenses.module';
 import { InvoicesModule } from './invoices/invoices.module';
 import { ProductsModule } from './products/products.module';
+import { ReportsModule } from './reports/reports.module';
 import { HealthController } from './health.controller';
 import { PrismaModule } from './prisma/prisma.module';
 
@@ -24,6 +25,7 @@ import { PrismaModule } from './prisma/prisma.module';
     ExpensesModule,
     ProductsModule,
     InvoicesModule,
+    ReportsModule,
     DashboardModule,
   ],
   controllers: [HealthController],

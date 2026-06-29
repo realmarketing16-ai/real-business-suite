@@ -69,6 +69,14 @@ type ExpenseCategory = 'OPERATIONS' | 'MARKETING' | 'PAYROLL' | 'SOFTWARE' | 'RE
 type Expense = { id: string; vendor: string; category: ExpenseCategory; amount: number; spentAt: string; description?: string | null; receiptUrl?: string | null };
 type ExpenseForm = { vendor: string; category: ExpenseCategory; amount: string; spentAt: string; description: string; receiptUrl: string };
 
+type ReportSummary = {
+  profitLoss: { revenue: number; expenses: number; netProfit: number };
+  invoices: { status: string; count: number; total: number }[];
+  customers: { status: string; count: number }[];
+  deals: { stage: string; count: number; value: number }[];
+  exports: string[];
+};
+
 const emptyCompanyForm: CompanyForm = { name: '', industry: '', email: '', phone: '', address: '' };
 const emptyEmployeeForm: EmployeeForm = { employeeNo: '', firstName: '', lastName: '', email: '', phone: '', jobTitle: '', department: '', status: 'ACTIVE' };
 const emptyCustomerForm: CustomerForm = { name: '', email: '', phone: '', companyName: '', status: 'LEAD', notes: '' };
@@ -126,6 +134,7 @@ export default function DashboardPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [reports, setReports] = useState<ReportSummary | null>(null);
   const [employeeForm, setEmployeeForm] = useState<EmployeeForm>(emptyEmployeeForm);
   const [customerForm, setCustomerForm] = useState<CustomerForm>(emptyCustomerForm);
   const [dealForm, setDealForm] = useState<DealForm>(emptyDealForm);
@@ -148,7 +157,7 @@ export default function DashboardPage() {
 
   async function loadDashboard() {
     setError('');
-    const [nextSummary, nextCompany, nextEmployees, nextCustomers, nextDeals, nextProducts, nextInvoices, nextExpenses] = await Promise.all([
+    const [nextSummary, nextCompany, nextEmployees, nextCustomers, nextDeals, nextProducts, nextInvoices, nextExpenses, nextReports] = await Promise.all([
       api<Summary>('/dashboard/summary'),
       api<Company>('/company'),
       api<Employee[]>('/employees'),
@@ -157,6 +166,7 @@ export default function DashboardPage() {
       api<Product[]>('/products'),
       api<Invoice[]>('/invoices'),
       api<Expense[]>('/expenses'),
+      api<ReportSummary>('/reports/summary'),
     ]);
     setSummary(nextSummary);
     setCompany(nextCompany);
@@ -167,6 +177,7 @@ export default function DashboardPage() {
     setProducts(nextProducts);
     setInvoices(nextInvoices);
     setExpenses(nextExpenses);
+    setReports(nextReports);
     setInvoiceForm((current) => ({
       ...current,
       customerId: current.customerId || nextCustomers[0]?.id || '',
@@ -460,12 +471,37 @@ export default function DashboardPage() {
     }
   }
 
+  async function downloadReport(type: string) {
+    setSaving(`report-${type}`);
+    setError('');
+    setNotice('');
+    try {
+      const token = window.localStorage.getItem('rbs_token');
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api'}/reports/export/${type}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!response.ok) throw new Error('Unable to export report');
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${type}.csv`;
+      link.click();
+      window.URL.revokeObjectURL(url);
+      setNotice(`${type.replace('-', ' ')} report downloaded.`);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to download report');
+    } finally {
+      setSaving('');
+    }
+  }
+
   return (
     <main className="appShell">
       <aside className="sidebar">
         <div className="brand light"><span>R</span> RBS</div>
         <nav>
-          {['Overview', 'Company', 'Employees', 'Customers', 'Sales', 'Products', 'Invoices', 'Payments', 'Expenses'].map((item) => <a className="active" key={item}>{item}</a>)}
+          {['Overview', 'Company', 'Employees', 'Customers', 'Sales', 'Products', 'Invoices', 'Payments', 'Expenses', 'Reports'].map((item) => <a className="active" key={item}>{item}</a>)}
         </nav>
         <button className="signOut" onClick={signOut}>Sign out</button>
       </aside>
@@ -700,6 +736,42 @@ export default function DashboardPage() {
             <div className="tableWrap"><table className="dataTable"><thead><tr><th>Vendor</th><th>Category</th><th>Amount</th><th>Date</th></tr></thead><tbody>{expenses.map((expense) => <tr key={expense.id}><td><b>{expense.vendor}</b><small>{expense.description || expense.receiptUrl || ''}</small></td><td><span className={`statusPill ${expense.category.toLowerCase()}`}>{categoryLabel(expense.category)}</span></td><td>{currency(expense.amount)}</td><td>{new Date(expense.spentAt).toLocaleDateString()}</td></tr>)}</tbody></table></div>
             {expenses.length === 0 && <div className="emptyState"><h3>No expenses yet</h3><p className="muted">Record expenses to unlock your net profit view.</p></div>}
           </article>
+        </section>
+
+        <section className="panel">
+          <div className="panelHeading">
+            <div><p className="eyebrow">Reports</p><h2>Business reports and exports</h2></div>
+            <span className="badge">Alpha 0.7</span>
+          </div>
+          <div className="reportGrid">
+            <article className="reportCard">
+              <span>Profit / loss</span>
+              <b>{currency(reports?.profitLoss.netProfit)}</b>
+              <small>Revenue {currency(reports?.profitLoss.revenue)} · Expenses {currency(reports?.profitLoss.expenses)}</small>
+            </article>
+            <article className="reportCard">
+              <span>Invoice report</span>
+              <b>{reports?.invoices.reduce((sum, item) => sum + item.count, 0) ?? 0}</b>
+              <small>{reports?.invoices.map((item) => `${item.status.toLowerCase()}: ${item.count}`).join(' · ') || 'No invoices yet'}</small>
+            </article>
+            <article className="reportCard">
+              <span>Customer report</span>
+              <b>{reports?.customers.reduce((sum, item) => sum + item.count, 0) ?? 0}</b>
+              <small>{reports?.customers.map((item) => `${item.status.toLowerCase()}: ${item.count}`).join(' · ') || 'No customers yet'}</small>
+            </article>
+            <article className="reportCard">
+              <span>Sales report</span>
+              <b>{currency(reports?.deals.reduce((sum, item) => sum + item.value, 0))}</b>
+              <small>{reports?.deals.map((item) => `${item.stage.toLowerCase().replace('_', ' ')}: ${item.count}`).join(' · ') || 'No deals yet'}</small>
+            </article>
+          </div>
+          <div className="exportActions">
+            {['profit-loss', 'customers', 'invoices', 'expenses'].map((type) => (
+              <button className="ghostButton" key={type} onClick={() => downloadReport(type)} disabled={saving === `report-${type}`}>
+                {saving === `report-${type}` ? 'Downloading...' : `Download ${type.replace('-', ' ')} CSV`}
+              </button>
+            ))}
+          </div>
         </section>
       </section>
     </main>
