@@ -63,6 +63,27 @@ enum ExpenseCategory {
   OTHER
 }
 
+enum ProjectStatus {
+  PLANNED
+  ACTIVE
+  ON_HOLD
+  COMPLETED
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+  BLOCKED
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
 model Company {
   id        String     @id @default(cuid())
   name      String
@@ -78,6 +99,8 @@ model Company {
   payments  Payment[]
   deals     Deal[]
   expenses  Expense[]
+  projects  Project[]
+  tasks     Task[]
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
 }
@@ -128,6 +151,7 @@ model Customer {
   company   Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
   invoices  Invoice[]
   deals     Deal[]
+  projects  Project[]
   createdAt DateTime       @default(now())
   updatedAt DateTime       @updatedAt
 
@@ -246,4 +270,46 @@ model Expense {
   @@index([companyId])
   @@index([companyId, category])
   @@index([companyId, spentAt])
+}
+
+model Project {
+  id          String        @id @default(cuid())
+  name        String
+  status      ProjectStatus @default(PLANNED)
+  budget      Decimal?      @db.Decimal(12, 2)
+  startDate   DateTime?
+  dueDate     DateTime?
+  description String?
+  customerId  String?
+  customer    Customer?     @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  companyId   String
+  company     Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  tasks       Task[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([companyId])
+  @@index([companyId, status])
+  @@index([customerId])
+}
+
+model Task {
+  id          String       @id @default(cuid())
+  title       String
+  status      TaskStatus   @default(TODO)
+  priority    TaskPriority @default(MEDIUM)
+  dueDate     DateTime?
+  assignee    String?
+  description String?
+  projectId   String
+  project     Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  companyId   String
+  company     Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([companyId])
+  @@index([companyId, status])
+  @@index([companyId, priority])
+  @@index([projectId])
 }
