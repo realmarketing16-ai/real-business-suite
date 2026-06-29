@@ -1039,6 +1039,21 @@ export default function DashboardPage() {
     }
   }
 
+  async function startStripeCheckout(plan: SubscriptionPlan) {
+    setSaving(`checkout-${plan}`);
+    setError('');
+    setNotice('');
+    try {
+      const result = await api<{ url?: string | null }>('/billing/checkout', { method: 'POST', body: JSON.stringify({ plan }) });
+      if (!result.url) throw new Error('Stripe did not return a checkout URL');
+      window.location.href = result.url;
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to start Stripe checkout');
+    } finally {
+      setSaving('');
+    }
+  }
+
   async function downloadReport(type: string) {
     setSaving(`report-${type}`);
     setError('');
@@ -1227,6 +1242,9 @@ export default function DashboardPage() {
                 <ul className="suggestions">{plan.features.map((feature) => <li key={feature}><i>✓</i>{feature}</li>)}</ul>
                 <button className="button" onClick={() => updateBillingPlan(plan.plan)} disabled={billing?.subscription.plan === plan.plan || saving === `billing-${plan.plan}`}>
                   {saving === `billing-${plan.plan}` ? 'Saving...' : billing?.subscription.plan === plan.plan ? 'Selected' : `Choose ${labelFromEnum(plan.plan)}`}
+                </button>
+                <button className="ghostButton" onClick={() => startStripeCheckout(plan.plan)} disabled={!billing?.checkoutReady || saving === `checkout-${plan.plan}`}>
+                  {saving === `checkout-${plan.plan}` ? 'Opening Stripe...' : billing?.checkoutReady ? `Pay for ${labelFromEnum(plan.plan)}` : 'Stripe setup required'}
                 </button>
               </article>
             ))}

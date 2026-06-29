@@ -116,12 +116,16 @@ Registration, successful login, password-reset request, and completed password-r
 
 New companies start on a 14-day `STARTER` trial. Owners/admins can view and change the tracked plan from the dashboard Billing section.
 
-The current foundation records subscription plan/status and exposes payment readiness, but live card charging still requires Stripe checkout/webhook wiring with:
+The app creates Stripe Checkout sessions from the dashboard Billing section and listens for Stripe subscription events at:
+
+- `POST /api/billing/webhook`
+
+Configure that webhook endpoint in Stripe and set:
 
 - `STRIPE_SECRET_KEY`
 - `STRIPE_WEBHOOK_SECRET`
 
-Before public paid launch, confirm your pricing, tax handling, refund policy, and subscription cancellation flow.
+Before public paid launch, confirm your pricing, tax handling, refund policy, and subscription cancellation flow. Use Stripe test mode first, then switch to live keys only after a successful test checkout and webhook sync.
 
 ## Backups
 
@@ -157,6 +161,7 @@ Production hosts should use managed PostgreSQL automated backups plus manual bac
 - Auth rate limits are tested on login and password reset endpoints.
 - Owner/admin audit log shows recent account security events.
 - Billing section shows the intended plan, status, and payment provider readiness.
+- Stripe test checkout completes and webhook updates subscription status.
 - Email mode is intentional (`dry-run` for test, Resend for launch).
 - Password reset emails are delivered successfully or intentionally dry-run during test.
 - First owner account credentials are stored securely.
