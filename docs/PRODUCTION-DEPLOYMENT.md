@@ -85,6 +85,19 @@ In production mode (`NODE_ENV=production`), startup fails unless:
 
 In local development, missing production-only values are warnings so localhost remains easy to run.
 
+## Security headers
+
+The web and API apps send baseline launch security headers:
+
+- `X-Content-Type-Options: nosniff`
+- `X-Frame-Options: DENY`
+- `Referrer-Policy: strict-origin-when-cross-origin`
+- `Cross-Origin-Opener-Policy: same-origin`
+- `Permissions-Policy` disabling camera, microphone, geolocation, and payment APIs by default
+- `Strict-Transport-Security` for HTTPS production deployments
+
+The API also sends `Cache-Control: no-store` for authenticated business data responses.
+
 ## Backups
 
 Run database backups at least daily and before every production migration.
@@ -110,6 +123,7 @@ Production hosts should use managed PostgreSQL automated backups plus manual bac
 - Backup completed and restore process has been tested.
 - API health endpoint responds.
 - Owner/admin readiness page reports no failed checks.
+- Browser/API responses include the expected security headers.
 - Email mode is intentional (`dry-run` for test, Resend for launch).
 - First owner account credentials are stored securely.
 - No `.env` secrets are committed.
