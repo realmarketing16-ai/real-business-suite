@@ -99,6 +99,15 @@ The web and API apps send baseline launch security headers:
 
 The API also sends `Cache-Control: no-store` for authenticated business data responses.
 
+## Authentication rate limits
+
+Public authentication endpoints have lightweight in-memory rate limiting:
+
+- Register, login, and reset-password attempts: 10 attempts per 15 minutes per route/client key.
+- Forgot-password requests: 5 attempts per 15 minutes per route/client key.
+
+For a single API instance this protects launch traffic from simple brute-force and email-spam bursts. For multi-instance production deployments, also enable an edge/API-gateway rate limit so limits are shared across all running instances.
+
 ## Backups
 
 Run database backups at least daily and before every production migration.
@@ -130,6 +139,7 @@ Production hosts should use managed PostgreSQL automated backups plus manual bac
 - API health endpoint responds.
 - Owner/admin readiness page reports no failed checks.
 - Browser/API responses include the expected security headers.
+- Auth rate limits are tested on login and password reset endpoints.
 - Email mode is intentional (`dry-run` for test, Resend for launch).
 - Password reset emails are delivered successfully or intentionally dry-run during test.
 - First owner account credentials are stored securely.
