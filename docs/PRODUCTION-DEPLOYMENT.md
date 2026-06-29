@@ -108,6 +108,8 @@ Public authentication endpoints have lightweight in-memory rate limiting:
 
 For a single API instance this protects launch traffic from simple brute-force and email-spam bursts. For multi-instance production deployments, also enable an edge/API-gateway rate limit so limits are shared across all running instances.
 
+Registration, successful login, password-reset request, and completed password-reset events are recorded in the audit log for owner/admin review. Audit entries never store passwords or reset tokens.
+
 ## Backups
 
 Run database backups at least daily and before every production migration.
@@ -140,6 +142,7 @@ Production hosts should use managed PostgreSQL automated backups plus manual bac
 - Owner/admin readiness page reports no failed checks.
 - Browser/API responses include the expected security headers.
 - Auth rate limits are tested on login and password reset endpoints.
+- Owner/admin audit log shows recent account security events.
 - Email mode is intentional (`dry-run` for test, Resend for launch).
 - Password reset emails are delivered successfully or intentionally dry-run during test.
 - First owner account credentials are stored securely.

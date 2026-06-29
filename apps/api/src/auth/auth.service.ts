@@ -18,7 +18,7 @@ export class AuthService {
 
     const user = await this.prisma.$transaction(async (tx) => {
       const company = await tx.company.create({ data: { name: input.companyName.trim() } });
-      return tx.user.create({
+      const owner = await tx.user.create({
         data: {
           email,
           passwordHash: await hash(input.password, 12),
@@ -29,6 +29,18 @@ export class AuthService {
         },
         include: { company: true },
       });
+      await tx.auditLog.create({
+        data: {
+          action: 'REGISTER',
+          entityType: 'User',
+          entityId: owner.id,
+          actorId: owner.id,
+          companyId: owner.companyId,
+          description: `${owner.firstName} ${owner.lastName} registered ${company.name}.`,
+          metadata: { email: owner.email, role: owner.role },
+        },
+      });
+      return owner;
     });
 
     return this.session(user);
@@ -42,6 +54,17 @@ export class AuthService {
     if (!user || !(await compare(input.password, user.passwordHash))) {
       throw new UnauthorizedException('Incorrect email or password');
     }
+    await this.prisma.auditLog.create({
+      data: {
+        action: 'LOGIN',
+        entityType: 'User',
+        entityId: user.id,
+        actorId: user.id,
+        companyId: user.companyId,
+        description: `${user.firstName} ${user.lastName} signed in.`,
+        metadata: { email: user.email, role: user.role },
+      },
+    });
     return this.session(user);
   }
 
@@ -63,6 +86,17 @@ export class AuthService {
         data: { usedAt: new Date() },
       });
       await passwordResetToken.create({ data: { userId: user.id, tokenHash, expiresAt } });
+      await tx.auditLog.create({
+        data: {
+          action: 'PASSWORD_RESET_REQUESTED',
+          entityType: 'User',
+          entityId: user.id,
+          actorId: user.id,
+          companyId: user.companyId,
+          description: `Password reset was requested for ${user.email}.`,
+          metadata: { email: user.email, expiresAt: expiresAt.toISOString() },
+        },
+      });
       return tx.emailMessage.create({
         data: {
           companyId: user.companyId,
@@ -82,9 +116,10 @@ export class AuthService {
   async resetPassword(input: ResetPasswordDto) {
     const tokenHash = this.hashToken(input.token.trim());
     const reset = await this.passwordResetTokens(this.prisma).findUnique({ where: { tokenHash }, include: { user: { include: { company: true } } } });
-    if (!reset || reset.usedAt || reset.expiresAt <= new Date()) {
+    if (!reset || !reset.user || reset.usedAt || reset.expiresAt <= new Date()) {
       throw new UnauthorizedException('Password reset link is invalid or expired');
     }
+    const resetUser = reset.user;
 
     const passwordHash = await hash(input.password, 12);
     const user = await this.prisma.$transaction(async (tx) => {
@@ -94,6 +129,17 @@ export class AuthService {
       await passwordResetToken.updateMany({
         where: { userId: reset.userId, usedAt: null },
         data: { usedAt: new Date() },
+      });
+      await tx.auditLog.create({
+        data: {
+          action: 'PASSWORD_RESET_COMPLETED',
+          entityType: 'User',
+          entityId: reset.userId,
+          actorId: reset.userId,
+          companyId: resetUser.companyId,
+          description: `Password was reset for ${resetUser.email}.`,
+          metadata: { email: resetUser.email },
+        },
       });
       return tx.user.findUniqueOrThrow({ where: { id: reset.userId }, include: { company: true } });
     });
@@ -158,7 +204,24 @@ export class AuthService {
     return (client as {
       passwordResetToken: {
         create(args: unknown): Promise<unknown>;
-        findUnique(args: unknown): Promise<({ id: string; userId: string; usedAt: Date | null; expiresAt: Date } & Record<string, unknown>) | null>;
+        findUnique(args: unknown): Promise<
+          | ({
+              id: string;
+              userId: string;
+              usedAt: Date | null;
+              expiresAt: Date;
+              user?: {
+                id: string;
+                email: string;
+                firstName: string;
+                lastName: string;
+                role: string;
+                companyId: string;
+                company: { id: string; name: string };
+              };
+            } & Record<string, unknown>)
+          | null
+        >;
         update(args: unknown): Promise<unknown>;
         updateMany(args: unknown): Promise<unknown>;
       };
