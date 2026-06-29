@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, NotFoundException, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, NotFoundException, Param, Patch, Post, Res, UseGuards } from '@nestjs/common';
 import { InvoiceStatus, Prisma } from '@prisma/client';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { AuthenticatedUser, JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -28,6 +28,88 @@ function serializeInvoice(invoice: any) {
     })),
     payments: payments.map((payment: any) => ({ ...payment, amount: money(payment.amount) })),
   };
+}
+
+function pdfEscape(value: unknown) {
+  return String(value ?? '').replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)');
+}
+
+function currency(value: Prisma.Decimal | number | string | null | undefined) {
+  return `$${money(value).toFixed(2)}`;
+}
+
+function formatDate(value: unknown) {
+  if (!value) return '-';
+  return new Date(value as string | Date).toLocaleDateString('en-US');
+}
+
+function buildInvoicePdf(invoice: any) {
+  const paid = (invoice.payments ?? []).filter((payment: any) => payment.status === 'RECORDED').reduce((sum: number, payment: any) => sum + money(payment.amount), 0);
+  const balance = Math.max(money(invoice.total) - paid, 0);
+  const lines = [
+    { text: invoice.company.name, x: 50, y: 760, size: 20 },
+    { text: 'INVOICE', x: 440, y: 760, size: 22 },
+    { text: `Invoice #: ${invoice.invoiceNo}`, x: 440, y: 730, size: 11 },
+    { text: `Status: ${invoice.status}`, x: 440, y: 714, size: 11 },
+    { text: `Issued: ${formatDate(invoice.issueDate)}`, x: 440, y: 698, size: 11 },
+    { text: `Due: ${formatDate(invoice.dueDate)}`, x: 440, y: 682, size: 11 },
+    { text: 'Bill to', x: 50, y: 700, size: 12 },
+    { text: invoice.customer.name, x: 50, y: 680, size: 14 },
+    { text: invoice.customer.companyName || '', x: 50, y: 662, size: 10 },
+    { text: invoice.customer.email || '', x: 50, y: 646, size: 10 },
+    { text: invoice.customer.phone || '', x: 50, y: 630, size: 10 },
+    { text: 'Description', x: 50, y: 580, size: 11 },
+    { text: 'Qty', x: 335, y: 580, size: 11 },
+    { text: 'Unit', x: 390, y: 580, size: 11 },
+    { text: 'Total', x: 470, y: 580, size: 11 },
+  ];
+
+  let y = 555;
+  for (const item of invoice.items ?? []) {
+    lines.push(
+      { text: item.description, x: 50, y, size: 10 },
+      { text: money(item.quantity).toString(), x: 335, y, size: 10 },
+      { text: currency(item.unitPrice), x: 390, y, size: 10 },
+      { text: currency(item.lineTotal), x: 470, y, size: 10 },
+    );
+    y -= 20;
+  }
+
+  lines.push(
+    { text: `Subtotal: ${currency(invoice.subtotal)}`, x: 390, y: 170, size: 11 },
+    { text: `Tax: ${currency(invoice.tax)}`, x: 390, y: 150, size: 11 },
+    { text: `Total: ${currency(invoice.total)}`, x: 390, y: 130, size: 13 },
+    { text: `Paid: ${currency(paid)}`, x: 390, y: 108, size: 11 },
+    { text: `Balance: ${currency(balance)}`, x: 390, y: 88, size: 13 },
+    { text: invoice.notes ? `Notes: ${invoice.notes}` : 'Thank you for your business.', x: 50, y: 110, size: 10 },
+  );
+
+  const textOps = lines
+    .filter((line) => line.text)
+    .map((line) => `BT /F1 ${line.size} Tf ${line.x} ${line.y} Td (${pdfEscape(line.text)}) Tj ET`)
+    .join('\n');
+  const content = `0.8 w 50 595 m 545 595 l S\n${textOps}`;
+  const objects = [
+    '<< /Type /Catalog /Pages 2 0 R >>',
+    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>',
+    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
+    `<< /Length ${Buffer.byteLength(content, 'utf8')} >>\nstream\n${content}\nendstream`,
+  ];
+
+  let pdf = '%PDF-1.4\n';
+  const offsets = [0];
+  for (let index = 0; index < objects.length; index += 1) {
+    offsets.push(Buffer.byteLength(pdf, 'utf8'));
+    pdf += `${index + 1} 0 obj\n${objects[index]}\nendobj\n`;
+  }
+  const xrefOffset = Buffer.byteLength(pdf, 'utf8');
+  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  for (let index = 1; index < offsets.length; index += 1) {
+    pdf += `${String(offsets[index]).padStart(10, '0')} 00000 n \n`;
+  }
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+  return Buffer.from(pdf, 'utf8');
 }
 
 @UseGuards(JwtAuthGuard)
@@ -89,6 +171,20 @@ export class InvoicesController {
       }
       throw cause;
     }
+  }
+
+  @Get(':id/pdf')
+  async pdf(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string, @Res() response: any) {
+    const invoice = await this.prisma.invoice.findFirst({
+      where: { id, companyId: user.companyId },
+      include: { company: true, customer: true, items: true, payments: true },
+    });
+    if (!invoice) throw new NotFoundException('Invoice not found');
+    const pdf = buildInvoicePdf(invoice);
+    response.setHeader('Content-Type', 'application/pdf');
+    response.setHeader('Content-Disposition', `attachment; filename="${invoice.invoiceNo}.pdf"`);
+    response.setHeader('Content-Length', pdf.length);
+    response.end(pdf);
   }
 
   @Patch(':id/status')
