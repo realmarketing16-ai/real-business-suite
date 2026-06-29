@@ -14,6 +14,8 @@ API:
 - `EMAIL_DRY_RUN`: set `false` when real email delivery is ready.
 - `RESEND_API_KEY`: required when using Resend delivery.
 - `EMAIL_FROM`: verified sender, for example `Real Business Suite <no-reply@yourdomain.com>`.
+- `STRIPE_SECRET_KEY`: required before charging customers online.
+- `STRIPE_WEBHOOK_SECRET`: required before trusting subscription payment events.
 
 Web:
 
@@ -110,6 +112,17 @@ For a single API instance this protects launch traffic from simple brute-force a
 
 Registration, successful login, password-reset request, and completed password-reset events are recorded in the audit log for owner/admin review. Audit entries never store passwords or reset tokens.
 
+## Billing and subscriptions
+
+New companies start on a 14-day `STARTER` trial. Owners/admins can view and change the tracked plan from the dashboard Billing section.
+
+The current foundation records subscription plan/status and exposes payment readiness, but live card charging still requires Stripe checkout/webhook wiring with:
+
+- `STRIPE_SECRET_KEY`
+- `STRIPE_WEBHOOK_SECRET`
+
+Before public paid launch, confirm your pricing, tax handling, refund policy, and subscription cancellation flow.
+
 ## Backups
 
 Run database backups at least daily and before every production migration.
@@ -143,6 +156,7 @@ Production hosts should use managed PostgreSQL automated backups plus manual bac
 - Browser/API responses include the expected security headers.
 - Auth rate limits are tested on login and password reset endpoints.
 - Owner/admin audit log shows recent account security events.
+- Billing section shows the intended plan, status, and payment provider readiness.
 - Email mode is intentional (`dry-run` for test, Resend for launch).
 - Password reset emails are delivered successfully or intentionally dry-run during test.
 - First owner account credentials are stored securely.

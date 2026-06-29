@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { AuditLogsModule } from './audit-logs/audit-logs.module';
 import { AuthModule } from './auth/auth.module';
+import { BillingModule } from './billing/billing.module';
 import { CompaniesModule } from './companies/companies.module';
 import { CustomersModule } from './customers/customers.module';
 import { DashboardModule } from './dashboard/dashboard.module';
@@ -27,6 +28,7 @@ import { validateEnv } from './config/env.validation';
     PrismaModule,
     AuditLogsModule,
     AuthModule,
+    BillingModule,
     CompaniesModule,
     EmployeesModule,
     CustomersModule,

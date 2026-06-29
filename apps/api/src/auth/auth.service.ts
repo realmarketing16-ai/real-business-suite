@@ -18,6 +18,14 @@ export class AuthService {
 
     const user = await this.prisma.$transaction(async (tx) => {
       const company = await tx.company.create({ data: { name: input.companyName.trim() } });
+      await this.subscriptions(tx).create({
+        data: {
+          companyId: company.id,
+          plan: 'STARTER',
+          status: 'TRIALING',
+          trialEndsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+        },
+      });
       const owner = await tx.user.create({
         data: {
           email,
@@ -226,6 +234,14 @@ export class AuthService {
         updateMany(args: unknown): Promise<unknown>;
       };
     }).passwordResetToken;
+  }
+
+  private subscriptions(client: unknown) {
+    return (client as {
+      subscription: {
+        create(args: unknown): Promise<unknown>;
+      };
+    }).subscription;
   }
 
   private async session(user: { id: string; email: string; firstName: string; lastName: string; role: string; companyId: string; company: { id: string; name: string } }) {

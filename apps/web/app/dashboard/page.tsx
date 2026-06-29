@@ -121,6 +121,19 @@ type EmailStatus = 'QUEUED' | 'SENT' | 'FAILED';
 type EmailMessage = { id: string; to: string; subject: string; bodyPreview: string; status: EmailStatus; relatedType?: string | null; createdAt: string };
 type ReadinessCheck = { key: string; label: string; status: 'PASS' | 'WARN' | 'FAIL'; detail: string };
 type ReadinessStatus = { status: 'READY' | 'NEEDS_REVIEW' | 'NOT_READY'; summary: { pass: number; warn: number; fail: number }; checkedAt: string; checks: ReadinessCheck[] };
+type SubscriptionPlan = 'STARTER' | 'BUSINESS' | 'PRO';
+type SubscriptionStatus = 'TRIALING' | 'ACTIVE' | 'PAST_DUE' | 'CANCELED';
+type BillingStatus = {
+  subscription: {
+    id: string;
+    plan: SubscriptionPlan;
+    status: SubscriptionStatus;
+    trialEndsAt?: string | null;
+    currentPeriodEndsAt?: string | null;
+  };
+  plans: { plan: SubscriptionPlan; priceMonthly: number; features: string[] }[];
+  checkoutReady: boolean;
+};
 
 const emptyCompanyForm: CompanyForm = { name: '', industry: '', email: '', phone: '', address: '' };
 const emptyEmployeeForm: EmployeeForm = { employeeNo: '', firstName: '', lastName: '', email: '', phone: '', jobTitle: '', department: '', status: 'ACTIVE' };
@@ -199,6 +212,7 @@ export default function DashboardPage() {
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [emailMessages, setEmailMessages] = useState<EmailMessage[]>([]);
   const [readiness, setReadiness] = useState<ReadinessStatus | null>(null);
+  const [billing, setBilling] = useState<BillingStatus | null>(null);
   const [reports, setReports] = useState<ReportSummary | null>(null);
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [employeeForm, setEmployeeForm] = useState<EmployeeForm>(emptyEmployeeForm);
@@ -239,7 +253,7 @@ export default function DashboardPage() {
   const currentRole = currentUser?.role ?? 'EMPLOYEE';
   const isOwnerOrAdmin = currentRole === 'OWNER' || currentRole === 'ADMIN';
   const canManageBusiness = isOwnerOrAdmin || currentRole === 'MANAGER';
-  const navItems = ['Overview', 'Company', 'Team', 'Employees', 'Customers', 'Sales', 'Quotes', 'Inventory', 'Purchasing', 'Projects', 'Products', 'Invoices', 'Payments', 'Expenses', 'Reports', ...(isOwnerOrAdmin ? ['Audit'] : [])];
+  const navItems = ['Overview', 'Company', 'Team', 'Employees', 'Customers', 'Sales', 'Quotes', 'Inventory', 'Purchasing', 'Projects', 'Products', 'Invoices', 'Payments', 'Expenses', 'Reports', ...(isOwnerOrAdmin ? ['Billing', 'Audit'] : [])];
   const totalTasks = summary?.metrics.tasks ?? 0;
   const onboardingItems = [
     { label: 'Complete company profile', done: Boolean(company?.email && company?.phone && company?.industry), detail: company?.email && company?.phone ? 'Company contact details are ready.' : 'Add company email, phone, and industry.' },
@@ -248,6 +262,7 @@ export default function DashboardPage() {
     { label: 'Set up products/services', done: activeProducts.length > 0, detail: activeProducts.length > 0 ? `${activeProducts.length} active catalog items are ready.` : 'Add services, products, or packages.' },
     { label: 'Create a project/task workflow', done: projects.length > 0 && totalTasks > 0, detail: projects.length > 0 ? `${projects.length} projects and ${totalTasks} tasks are tracked.` : 'Create a project and assign tasks.' },
     { label: 'Start billing and finance tracking', done: invoices.length > 0 || expenses.length > 0, detail: invoices.length > 0 || expenses.length > 0 ? `${invoices.length} invoices and ${expenses.length} expenses are recorded.` : 'Create an invoice or record an expense.' },
+    { label: 'Confirm subscription plan', done: Boolean(billing?.subscription), detail: billing ? `${labelFromEnum(billing.subscription.plan)} plan is ${labelFromEnum(billing.subscription.status)}.` : isOwnerOrAdmin ? 'Open Billing and confirm the launch plan.' : 'Ask an owner/admin to confirm billing.' },
     { label: 'Review launch readiness', done: readiness?.status === 'READY', detail: readiness ? `Readiness status: ${labelFromEnum(readiness.status)}.` : isOwnerOrAdmin ? 'Run through the production self-check.' : 'Ask an owner/admin to review readiness.' },
   ];
   const completedOnboardingItems = onboardingItems.filter((item) => item.done).length;
@@ -255,7 +270,7 @@ export default function DashboardPage() {
 
   async function loadDashboard() {
     setError('');
-    const [nextSummary, nextCompany, nextEmployees, nextCustomers, nextDeals, nextProducts, nextPurchasing, nextQuotes, nextInvoices, nextExpenses, nextProjects, nextTeamMembers, nextAuditLogs, nextEmailMessages, nextReadiness, nextReports] = await Promise.all([
+    const [nextSummary, nextCompany, nextEmployees, nextCustomers, nextDeals, nextProducts, nextPurchasing, nextQuotes, nextInvoices, nextExpenses, nextProjects, nextTeamMembers, nextAuditLogs, nextEmailMessages, nextReadiness, nextBilling, nextReports] = await Promise.all([
       api<Summary>('/dashboard/summary'),
       api<Company>('/company'),
       api<Employee[]>('/employees'),
@@ -271,6 +286,7 @@ export default function DashboardPage() {
       api<AuditLog[]>('/audit-logs').catch(() => []),
       api<EmailMessage[]>('/email/outbox').catch(() => []),
       api<ReadinessStatus>('/readiness').catch(() => null),
+      api<BillingStatus>('/billing').catch(() => null),
       api<ReportSummary>('/reports/summary'),
     ]);
     setSummary(nextSummary);
@@ -291,6 +307,7 @@ export default function DashboardPage() {
     setAuditLogs(nextAuditLogs);
     setEmailMessages(nextEmailMessages);
     setReadiness(nextReadiness);
+    setBilling(nextBilling);
     setReports(nextReports);
     setInvoiceForm((current) => ({
       ...current,
@@ -1006,6 +1023,22 @@ export default function DashboardPage() {
     }
   }
 
+  async function updateBillingPlan(plan: SubscriptionPlan) {
+    setSaving(`billing-${plan}`);
+    setError('');
+    setNotice('');
+    try {
+      const subscription = await api<BillingStatus['subscription']>('/billing/plan', { method: 'PATCH', body: JSON.stringify({ plan }) });
+      setBilling((current) => current ? { ...current, subscription } : current);
+      setNotice(`Billing plan changed to ${labelFromEnum(plan)}.`);
+      await loadDashboard();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to update billing plan');
+    } finally {
+      setSaving('');
+    }
+  }
+
   async function downloadReport(type: string) {
     setSaving(`report-${type}`);
     setError('');
@@ -1169,6 +1202,36 @@ export default function DashboardPage() {
           </div>
           <div className="tableWrap"><table className="dataTable"><thead><tr><th>Check</th><th>Status</th><th>Detail</th></tr></thead><tbody>{(readiness?.checks ?? []).map((item) => <tr key={item.key}><td><b>{item.label}</b></td><td><span className={`statusPill ${item.status.toLowerCase()}`}>{labelFromEnum(item.status)}</span></td><td>{item.detail}</td></tr>)}</tbody></table></div>
           {!readiness && <div className="emptyState"><h3>Readiness unavailable</h3><p className="muted">Owners and admins will see production readiness checks here.</p></div>}
+        </section>}
+
+        {isOwnerOrAdmin && <section className="panel">
+          <div className="panelHeading">
+            <div><p className="eyebrow">Billing</p><h2>Subscription and launch monetization</h2></div>
+            <span className={`badge ${billing?.subscription.status.toLowerCase() ?? ''}`}>{billing ? labelFromEnum(billing.subscription.status) : 'Not configured'}</span>
+          </div>
+          <div className="stats">
+            <article><span>Current plan</span><b>{billing ? labelFromEnum(billing.subscription.plan) : '-'}</b><small>Account subscription tier</small></article>
+            <article><span>Trial ends</span><b>{billing?.subscription.trialEndsAt ? new Date(billing.subscription.trialEndsAt).toLocaleDateString() : '-'}</b><small>Default launch trial window</small></article>
+            <article><span>Checkout</span><b>{billing?.checkoutReady ? 'Ready' : 'Setup'}</b><small>{billing?.checkoutReady ? 'Stripe keys detected' : 'Add Stripe keys before live payments'}</small></article>
+          </div>
+          <div className="recordsGrid">
+            {(billing?.plans ?? []).map((plan) => (
+              <article className="panel" key={plan.plan}>
+                <div className="panelHeading">
+                  <div>
+                    <p className="eyebrow">{labelFromEnum(plan.plan)}</p>
+                    <h2>{currency(plan.priceMonthly)} / month</h2>
+                  </div>
+                  {billing?.subscription.plan === plan.plan && <span className="badge">Current</span>}
+                </div>
+                <ul className="suggestions">{plan.features.map((feature) => <li key={feature}><i>✓</i>{feature}</li>)}</ul>
+                <button className="button" onClick={() => updateBillingPlan(plan.plan)} disabled={billing?.subscription.plan === plan.plan || saving === `billing-${plan.plan}`}>
+                  {saving === `billing-${plan.plan}` ? 'Saving...' : billing?.subscription.plan === plan.plan ? 'Selected' : `Choose ${labelFromEnum(plan.plan)}`}
+                </button>
+              </article>
+            ))}
+          </div>
+          {!billing?.checkoutReady && <p className="muted">Next launch step: add Stripe checkout keys and webhook handling so customers can pay online. This billing foundation keeps plan/status tracking ready now.</p>}
         </section>}
 
         <section className="recordsGrid">
