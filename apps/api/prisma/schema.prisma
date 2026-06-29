@@ -105,6 +105,19 @@ enum TaskPriority {
   URGENT
 }
 
+enum SubscriptionPlan {
+  STARTER
+  BUSINESS
+  PRO
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+}
+
 model Company {
   id        String     @id @default(cuid())
   name      String
@@ -128,8 +141,28 @@ model Company {
   purchaseOrders PurchaseOrder[]
   auditLogs AuditLog[]
   emailMessages EmailMessage[]
+  subscription Subscription?
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
+}
+
+model Subscription {
+  id                   String             @id @default(cuid())
+  plan                 SubscriptionPlan   @default(STARTER)
+  status               SubscriptionStatus @default(TRIALING)
+  trialEndsAt          DateTime?
+  currentPeriodEndsAt  DateTime?
+  stripeCustomerId     String?
+  stripeSubscriptionId String?
+  companyId            String             @unique
+  company              Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  @@index([status])
+  @@index([trialEndsAt])
+  @@index([stripeCustomerId])
+  @@index([stripeSubscriptionId])
 }
 
 model User {

@@ -71,6 +71,11 @@ export class ReadinessController {
     const emailReady = dryRun || (Boolean(resendApiKey) && Boolean(emailFrom));
     checks.push(check('email', 'Email delivery', emailReady ? (dryRun ? 'WARN' : 'PASS') : 'FAIL', dryRun ? 'Email is in dry-run mode; messages will not leave the system.' : emailReady ? 'Email provider settings are present.' : 'Set RESEND_API_KEY and EMAIL_FROM, or use EMAIL_DRY_RUN=true for testing.'));
 
+    const stripeSecretKey = this.config.get<string>('STRIPE_SECRET_KEY', '');
+    const stripeWebhookSecret = this.config.get<string>('STRIPE_WEBHOOK_SECRET', '');
+    const stripeReady = Boolean(stripeSecretKey && stripeWebhookSecret);
+    checks.push(check('payments', 'Customer payments', stripeReady ? 'PASS' : 'WARN', stripeReady ? 'Stripe checkout settings are present.' : 'Subscription plans are available, but set STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET before charging customers online.'));
+
     const deploymentDoc = existsSync(join(process.cwd(), '..', '..', 'docs', 'PRODUCTION-DEPLOYMENT.md')) || existsSync(join(process.cwd(), 'docs', 'PRODUCTION-DEPLOYMENT.md'));
     const launchDoc = existsSync(join(process.cwd(), '..', '..', 'docs', 'LAUNCH-READINESS.md')) || existsSync(join(process.cwd(), 'docs', 'LAUNCH-READINESS.md'));
     checks.push(check('docs', 'Launch documentation', deploymentDoc && launchDoc ? 'PASS' : 'WARN', deploymentDoc && launchDoc ? 'Production and launch readiness docs are present.' : 'Deployment or launch readiness documentation is missing from the runtime filesystem.'));
