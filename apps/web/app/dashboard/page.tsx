@@ -934,6 +934,36 @@ export default function DashboardPage() {
     }
   }
 
+  async function sendQueuedEmails() {
+    setSaving('email-send-queued');
+    setError('');
+    setNotice('');
+    try {
+      const result = await api<{ attempted: number; sent: number; failed: number }>('/email/outbox/send-queued', { method: 'POST' });
+      setNotice(`Email delivery processed: ${result.sent} sent, ${result.failed} failed, ${result.attempted} attempted.`);
+      await loadDashboard();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to send queued emails');
+    } finally {
+      setSaving('');
+    }
+  }
+
+  async function sendEmailMessage(message: EmailMessage) {
+    setSaving(`email-send-${message.id}`);
+    setError('');
+    setNotice('');
+    try {
+      const sent = await api<EmailMessage>(`/email/outbox/${message.id}/send`, { method: 'POST' });
+      setNotice(`${sent.subject} is now ${labelFromEnum(sent.status)}.`);
+      await loadDashboard();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to send email message');
+    } finally {
+      setSaving('');
+    }
+  }
+
   return (
     <main className="appShell">
       <aside className="sidebar">
@@ -1026,7 +1056,8 @@ export default function DashboardPage() {
 
         <section className="panel">
           <div className="panelHeading"><div><p className="eyebrow">Email outbox</p><h2>Queued business emails</h2></div><span className="badge">{emailMessages.length} messages</span></div>
-          <div className="tableWrap"><table className="dataTable"><thead><tr><th>Email</th><th>Related</th><th>Status</th><th>Queued</th></tr></thead><tbody>{emailMessages.map((message) => <tr key={message.id}><td><b>{message.subject}</b><small>To {message.to} Â· {message.bodyPreview}</small></td><td>{message.relatedType ? labelFromEnum(message.relatedType) : '-'}</td><td><span className={`statusPill ${message.status.toLowerCase()}`}>{labelFromEnum(message.status)}</span></td><td>{new Date(message.createdAt).toLocaleString()}</td></tr>)}</tbody></table></div>
+          <div className="exportActions"><button className="ghostButton" onClick={sendQueuedEmails} disabled={saving === 'email-send-queued' || emailMessages.filter((message) => message.status === 'QUEUED').length === 0}>{saving === 'email-send-queued' ? 'Sending...' : 'Send queued emails'}</button></div>
+          <div className="tableWrap"><table className="dataTable"><thead><tr><th>Email</th><th>Related</th><th>Status</th><th>Queued</th><th>Action</th></tr></thead><tbody>{emailMessages.map((message) => <tr key={message.id}><td><b>{message.subject}</b><small>To {message.to} Â· {message.bodyPreview}</small></td><td>{message.relatedType ? labelFromEnum(message.relatedType) : '-'}</td><td><span className={`statusPill ${message.status.toLowerCase()}`}>{labelFromEnum(message.status)}</span></td><td>{new Date(message.createdAt).toLocaleString()}</td><td>{message.status !== 'SENT' && <button className="ghostButton" onClick={() => sendEmailMessage(message)} disabled={saving === `email-send-${message.id}`}>{saving === `email-send-${message.id}` ? 'Sending...' : 'Send'}</button>}</td></tr>)}</tbody></table></div>
           {emailMessages.length === 0 && <div className="emptyState"><h3>No emails queued yet</h3><p className="muted">Invoice, quote, and team invite messages will appear here before SMTP delivery is connected.</p></div>}
         </section>
 
