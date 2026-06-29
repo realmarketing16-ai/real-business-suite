@@ -20,6 +20,14 @@ function check(key: string, label: string, status: ReadinessStatus, detail: stri
   return { key, label, status, detail };
 }
 
+function safeUrl(value: string) {
+  try {
+    return new URL(value);
+  } catch {
+    return null;
+  }
+}
+
 @UseGuards(JwtAuthGuard)
 @Controller('readiness')
 export class ReadinessController {
@@ -42,6 +50,20 @@ export class ReadinessController {
 
     const apiPort = this.config.get<string>('API_PORT', '4000');
     checks.push(check('api_port', 'API port', apiPort ? 'PASS' : 'WARN', apiPort ? `API_PORT is set to ${apiPort}.` : 'API_PORT is not set; default behavior will be used.'));
+
+    const nodeEnv = this.config.get<string>('NODE_ENV', 'development');
+    checks.push(check('node_env', 'Runtime mode', nodeEnv === 'production' ? 'PASS' : 'WARN', nodeEnv === 'production' ? 'API is running in production mode.' : `API is running in ${nodeEnv} mode.`));
+
+    const webUrl = this.config.get<string>('WEB_URL', 'http://localhost:3000');
+    const parsedWebUrl = safeUrl(webUrl);
+    const webUrlProductionReady = Boolean(parsedWebUrl && parsedWebUrl.protocol === 'https:' && parsedWebUrl.hostname !== 'localhost');
+    checks.push(check('web_url', 'Web/CORS origin', webUrlProductionReady ? 'PASS' : 'WARN', parsedWebUrl ? `${webUrl} is the allowed browser origin${webUrlProductionReady ? '.' : '; use an HTTPS production domain before public launch.'}` : 'WEB_URL is not a valid URL.'));
+
+    const databaseUrl = this.config.get<string>('DATABASE_URL', '');
+    const parsedDatabaseUrl = safeUrl(databaseUrl);
+    const databaseIsPostgres = parsedDatabaseUrl?.protocol.startsWith('postgres');
+    const databaseLooksLocal = parsedDatabaseUrl?.hostname === 'localhost' || parsedDatabaseUrl?.hostname === '127.0.0.1';
+    checks.push(check('database_url', 'Database URL', databaseIsPostgres && !databaseLooksLocal ? 'PASS' : 'WARN', databaseIsPostgres ? (databaseLooksLocal ? 'DATABASE_URL points to a local database; use managed PostgreSQL for production.' : 'DATABASE_URL uses PostgreSQL and does not point to localhost.') : 'DATABASE_URL should be a PostgreSQL connection string.'));
 
     const dryRun = this.config.get<string>('EMAIL_DRY_RUN', '').toLowerCase() === 'true';
     const resendApiKey = this.config.get<string>('RESEND_API_KEY', '');
