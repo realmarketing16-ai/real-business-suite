@@ -28,6 +28,7 @@ Use this checklist before letting real customers rely on Real Business Suite.
 - [ ] Email sender domain is verified with provider.
 - [ ] Browser and API use HTTPS in production.
 - [ ] Auth rate limits tested for login and password reset endpoints.
+- [ ] Auth audit events reviewed for registration, login, and password reset activity.
 
 ## Data readiness
 
