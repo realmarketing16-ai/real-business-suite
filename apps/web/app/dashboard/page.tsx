@@ -29,6 +29,11 @@ type Summary = {
     monthlyExpenses: number;
     netProfit: number;
     expenseCount: number;
+    projects: number;
+    activeProjects: number;
+    tasks: number;
+    openTasks: number;
+    overdueTasks: number;
     outstanding: number;
     productsEnabled: number;
   };
@@ -77,6 +82,14 @@ type ReportSummary = {
   exports: string[];
 };
 
+type ProjectStatus = 'PLANNED' | 'ACTIVE' | 'ON_HOLD' | 'COMPLETED';
+type TaskStatus = 'TODO' | 'IN_PROGRESS' | 'DONE' | 'BLOCKED';
+type TaskPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+type Task = { id: string; title: string; status: TaskStatus; priority: TaskPriority; dueDate?: string | null; assignee?: string | null; description?: string | null };
+type Project = { id: string; name: string; status: ProjectStatus; budget?: number | null; startDate?: string | null; dueDate?: string | null; description?: string | null; customer?: Customer | null; tasks: Task[] };
+type ProjectForm = { name: string; customerId: string; status: ProjectStatus; budget: string; startDate: string; dueDate: string; description: string };
+type TaskForm = { projectId: string; title: string; status: TaskStatus; priority: TaskPriority; dueDate: string; assignee: string; description: string };
+
 const emptyCompanyForm: CompanyForm = { name: '', industry: '', email: '', phone: '', address: '' };
 const emptyEmployeeForm: EmployeeForm = { employeeNo: '', firstName: '', lastName: '', email: '', phone: '', jobTitle: '', department: '', status: 'ACTIVE' };
 const emptyCustomerForm: CustomerForm = { name: '', email: '', phone: '', companyName: '', status: 'LEAD', notes: '' };
@@ -85,6 +98,8 @@ const emptyProductForm: ProductForm = { name: '', description: '', type: 'SERVIC
 const emptyInvoiceForm: InvoiceForm = { customerId: '', dueDate: '', productId: '', description: '', quantity: '1', unitPrice: '', tax: '0', notes: '' };
 const emptyPaymentForm: PaymentForm = { invoiceId: '', amount: '', method: 'Bank transfer', reference: '' };
 const emptyExpenseForm: ExpenseForm = { vendor: '', category: 'OPERATIONS', amount: '', spentAt: '', description: '', receiptUrl: '' };
+const emptyProjectForm: ProjectForm = { name: '', customerId: '', status: 'PLANNED', budget: '', startDate: '', dueDate: '', description: '' };
+const emptyTaskForm: TaskForm = { projectId: '', title: '', status: 'TODO', priority: 'MEDIUM', dueDate: '', assignee: '', description: '' };
 
 function toCompanyForm(company: Company): CompanyForm {
   return { name: company.name, industry: company.industry ?? '', email: company.email ?? '', phone: company.phone ?? '', address: company.address ?? '' };
@@ -123,6 +138,10 @@ function categoryLabel(category: ExpenseCategory) {
   return category.toLowerCase().replace('_', ' ');
 }
 
+function labelFromEnum(value: string) {
+  return value.toLowerCase().replace('_', ' ').replace('_', ' ');
+}
+
 export default function DashboardPage() {
   const router = useRouter();
   const [summary, setSummary] = useState<Summary | null>(null);
@@ -134,6 +153,7 @@ export default function DashboardPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [reports, setReports] = useState<ReportSummary | null>(null);
   const [employeeForm, setEmployeeForm] = useState<EmployeeForm>(emptyEmployeeForm);
   const [customerForm, setCustomerForm] = useState<CustomerForm>(emptyCustomerForm);
@@ -142,6 +162,8 @@ export default function DashboardPage() {
   const [invoiceForm, setInvoiceForm] = useState<InvoiceForm>(emptyInvoiceForm);
   const [paymentForm, setPaymentForm] = useState<PaymentForm>(emptyPaymentForm);
   const [expenseForm, setExpenseForm] = useState<ExpenseForm>(emptyExpenseForm);
+  const [projectForm, setProjectForm] = useState<ProjectForm>(emptyProjectForm);
+  const [taskForm, setTaskForm] = useState<TaskForm>(emptyTaskForm);
   const [editingEmployeeId, setEditingEmployeeId] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -153,11 +175,14 @@ export default function DashboardPage() {
   const openInvoices = invoices.filter((invoice) => invoice.status !== 'PAID' && invoice.status !== 'VOID');
   const pipelineStages: DealStage[] = ['NEW_LEAD', 'CONTACTED', 'PROPOSAL_SENT', 'WON', 'LOST'];
   const expenseCategories: ExpenseCategory[] = ['OPERATIONS', 'MARKETING', 'PAYROLL', 'SOFTWARE', 'RENT', 'TRAVEL', 'TAX', 'OTHER'];
+  const projectStatuses: ProjectStatus[] = ['PLANNED', 'ACTIVE', 'ON_HOLD', 'COMPLETED'];
+  const taskStatuses: TaskStatus[] = ['TODO', 'IN_PROGRESS', 'DONE', 'BLOCKED'];
+  const taskPriorities: TaskPriority[] = ['LOW', 'MEDIUM', 'HIGH', 'URGENT'];
   const companyName = company?.name ?? summary?.company.name ?? 'your company';
 
   async function loadDashboard() {
     setError('');
-    const [nextSummary, nextCompany, nextEmployees, nextCustomers, nextDeals, nextProducts, nextInvoices, nextExpenses, nextReports] = await Promise.all([
+    const [nextSummary, nextCompany, nextEmployees, nextCustomers, nextDeals, nextProducts, nextInvoices, nextExpenses, nextProjects, nextReports] = await Promise.all([
       api<Summary>('/dashboard/summary'),
       api<Company>('/company'),
       api<Employee[]>('/employees'),
@@ -166,6 +191,7 @@ export default function DashboardPage() {
       api<Product[]>('/products'),
       api<Invoice[]>('/invoices'),
       api<Expense[]>('/expenses'),
+      api<Project[]>('/projects'),
       api<ReportSummary>('/reports/summary'),
     ]);
     setSummary(nextSummary);
@@ -177,6 +203,7 @@ export default function DashboardPage() {
     setProducts(nextProducts);
     setInvoices(nextInvoices);
     setExpenses(nextExpenses);
+    setProjects(nextProjects);
     setReports(nextReports);
     setInvoiceForm((current) => ({
       ...current,
@@ -185,6 +212,8 @@ export default function DashboardPage() {
     }));
     setDealForm((current) => ({ ...current, customerId: current.customerId || nextCustomers[0]?.id || '' }));
     setPaymentForm((current) => ({ ...current, invoiceId: current.invoiceId || nextInvoices.find((invoice) => invoice.balance > 0)?.id || '' }));
+    setProjectForm((current) => ({ ...current, customerId: current.customerId || nextCustomers[0]?.id || '' }));
+    setTaskForm((current) => ({ ...current, projectId: current.projectId || nextProjects[0]?.id || '' }));
   }
 
   useEffect(() => {
@@ -471,6 +500,76 @@ export default function DashboardPage() {
     }
   }
 
+  async function saveProject(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSaving('project');
+    setError('');
+    setNotice('');
+    try {
+      await api<Project>('/projects', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: projectForm.name.trim(),
+          customerId: cleanText(projectForm.customerId),
+          status: projectForm.status,
+          budget: projectForm.budget ? Number(projectForm.budget) : undefined,
+          startDate: cleanText(projectForm.startDate),
+          dueDate: cleanText(projectForm.dueDate),
+          description: cleanText(projectForm.description),
+        }),
+      });
+      setNotice(`${projectForm.name.trim()} project was created.`);
+      setProjectForm({ ...emptyProjectForm, customerId: customers[0]?.id ?? '' });
+      await loadDashboard();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to save project');
+    } finally {
+      setSaving('');
+    }
+  }
+
+  async function saveTask(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSaving('task');
+    setError('');
+    setNotice('');
+    try {
+      await api<Task>(`/projects/${taskForm.projectId}/tasks`, {
+        method: 'POST',
+        body: JSON.stringify({
+          title: taskForm.title.trim(),
+          status: taskForm.status,
+          priority: taskForm.priority,
+          dueDate: cleanText(taskForm.dueDate),
+          assignee: cleanText(taskForm.assignee),
+          description: cleanText(taskForm.description),
+        }),
+      });
+      setNotice(`${taskForm.title.trim()} task was added.`);
+      setTaskForm({ ...emptyTaskForm, projectId: projects[0]?.id ?? '' });
+      await loadDashboard();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to save task');
+    } finally {
+      setSaving('');
+    }
+  }
+
+  async function updateTaskStatus(taskId: string, status: TaskStatus) {
+    setSaving(taskId);
+    setError('');
+    setNotice('');
+    try {
+      await api<Task>(`/projects/tasks/${taskId}`, { method: 'PATCH', body: JSON.stringify({ status }) });
+      setNotice(`Task moved to ${labelFromEnum(status)}.`);
+      await loadDashboard();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to update task');
+    } finally {
+      setSaving('');
+    }
+  }
+
   async function downloadReport(type: string) {
     setSaving(`report-${type}`);
     setError('');
@@ -501,7 +600,7 @@ export default function DashboardPage() {
       <aside className="sidebar">
         <div className="brand light"><span>R</span> RBS</div>
         <nav>
-          {['Overview', 'Company', 'Employees', 'Customers', 'Sales', 'Products', 'Invoices', 'Payments', 'Expenses', 'Reports'].map((item) => <a className="active" key={item}>{item}</a>)}
+          {['Overview', 'Company', 'Employees', 'Customers', 'Sales', 'Projects', 'Products', 'Invoices', 'Payments', 'Expenses', 'Reports'].map((item) => <a className="active" key={item}>{item}</a>)}
         </nav>
         <button className="signOut" onClick={signOut}>Sign out</button>
       </aside>
@@ -524,6 +623,8 @@ export default function DashboardPage() {
           <article><span>Total expenses</span><b>{loading ? '-' : currency(summary?.metrics.expenses)}</b><small>{summary?.metrics.expenseCount ?? 0} records</small></article>
           <article><span>Monthly spend</span><b>{loading ? '-' : currency(summary?.metrics.monthlyExpenses)}</b><small>This month</small></article>
           <article><span>Outstanding</span><b>{loading ? '-' : currency(summary?.metrics.outstanding)}</b><small>Invoice balances</small></article>
+          <article><span>Active projects</span><b>{summary?.metrics.activeProjects ?? (loading ? '-' : 0)}</b><small>{summary?.metrics.projects ?? 0} total</small></article>
+          <article><span>Open tasks</span><b>{summary?.metrics.openTasks ?? (loading ? '-' : 0)}</b><small>{summary?.metrics.overdueTasks ?? 0} overdue</small></article>
           <article><span>Open pipeline</span><b>{loading ? '-' : currency(summary?.metrics.pipelineValue)}</b><small>{summary?.metrics.openDeals ?? 0} open deals</small></article>
           <article><span>Won deals</span><b>{loading ? '-' : currency(summary?.metrics.wonDealValue)}</b><small>{summary?.metrics.conversionRate ?? 0}% conversion</small></article>
           <article><span>Customers</span><b>{summary?.metrics.customers ?? (loading ? '-' : 0)}</b><small>{summary?.metrics.activeCustomers ?? 0} active</small></article>
@@ -692,6 +793,71 @@ export default function DashboardPage() {
                 </div>
               );
             })}
+          </div>
+        </section>
+
+        <section className="recordsGrid">
+          <article className="panel">
+            <div className="panelHeading"><div><p className="eyebrow">Projects</p><h2>Create project</h2></div><span className="badge">{projects.length} projects</span></div>
+            <form className="companyForm" onSubmit={saveProject}>
+              <label>Project name<input required minLength={2} value={projectForm.name} onChange={(event) => setProjectForm((current) => ({ ...current, name: event.target.value }))} /></label>
+              <label>Customer<select value={projectForm.customerId} onChange={(event) => setProjectForm((current) => ({ ...current, customerId: event.target.value }))}><option value="">Internal project</option>{customers.map((customer) => <option key={customer.id} value={customer.id}>{customer.name}</option>)}</select></label>
+              <label>Status<select value={projectForm.status} onChange={(event) => setProjectForm((current) => ({ ...current, status: event.target.value as ProjectStatus }))}>{projectStatuses.map((status) => <option key={status} value={status}>{labelFromEnum(status)}</option>)}</select></label>
+              <label>Budget<input type="number" min="0" step="0.01" value={projectForm.budget} onChange={(event) => setProjectForm((current) => ({ ...current, budget: event.target.value }))} /></label>
+              <label>Start date<input type="date" value={projectForm.startDate} onChange={(event) => setProjectForm((current) => ({ ...current, startDate: event.target.value }))} /></label>
+              <label>Due date<input type="date" value={projectForm.dueDate} onChange={(event) => setProjectForm((current) => ({ ...current, dueDate: event.target.value }))} /></label>
+              <label className="wideField">Description<textarea value={projectForm.description} onChange={(event) => setProjectForm((current) => ({ ...current, description: event.target.value }))} /></label>
+              <button className="button" disabled={saving === 'project'}>{saving === 'project' ? 'Creating...' : 'Create project'}</button>
+            </form>
+          </article>
+
+          <article className="panel">
+            <div className="panelHeading"><div><p className="eyebrow">Tasks</p><h2>Add task</h2></div><span className="badge">{summary?.metrics.openTasks ?? 0} open</span></div>
+            <form className="companyForm" onSubmit={saveTask}>
+              <label>Project<select required value={taskForm.projectId} onChange={(event) => setTaskForm((current) => ({ ...current, projectId: event.target.value }))}><option value="">Choose project</option>{projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}</select></label>
+              <label>Task title<input required minLength={2} value={taskForm.title} onChange={(event) => setTaskForm((current) => ({ ...current, title: event.target.value }))} /></label>
+              <label>Status<select value={taskForm.status} onChange={(event) => setTaskForm((current) => ({ ...current, status: event.target.value as TaskStatus }))}>{taskStatuses.map((status) => <option key={status} value={status}>{labelFromEnum(status)}</option>)}</select></label>
+              <label>Priority<select value={taskForm.priority} onChange={(event) => setTaskForm((current) => ({ ...current, priority: event.target.value as TaskPriority }))}>{taskPriorities.map((priority) => <option key={priority} value={priority}>{labelFromEnum(priority)}</option>)}</select></label>
+              <label>Due date<input type="date" value={taskForm.dueDate} onChange={(event) => setTaskForm((current) => ({ ...current, dueDate: event.target.value }))} /></label>
+              <label>Assignee<input value={taskForm.assignee} onChange={(event) => setTaskForm((current) => ({ ...current, assignee: event.target.value }))} placeholder="Team member or owner" /></label>
+              <label className="wideField">Description<textarea value={taskForm.description} onChange={(event) => setTaskForm((current) => ({ ...current, description: event.target.value }))} /></label>
+              <button className="button" disabled={saving === 'task' || projects.length === 0}>{saving === 'task' ? 'Adding...' : 'Add task'}</button>
+            </form>
+          </article>
+        </section>
+
+        <section className="panel">
+          <div className="panelHeading">
+            <div><p className="eyebrow">Work board</p><h2>Projects and tasks</h2></div>
+            <span className="badge">{summary?.metrics.overdueTasks ?? 0} overdue</span>
+          </div>
+          <div className="projectBoard">
+            {projects.length === 0 ? (
+              <div className="emptyState"><h3>No projects yet</h3><p className="muted">Create a project to track client work, internal jobs, and delivery tasks.</p></div>
+            ) : projects.map((project) => (
+              <article className="projectCard" key={project.id}>
+                <div className="projectCardHeader">
+                  <div>
+                    <b>{project.name}</b>
+                    <small>{project.customer?.name || 'Internal'}{project.dueDate ? ` · due ${new Date(project.dueDate).toLocaleDateString()}` : ''}</small>
+                  </div>
+                  <span className={`statusPill ${project.status.toLowerCase()}`}>{labelFromEnum(project.status)}</span>
+                </div>
+                <div className="taskList">
+                  {project.tasks.length === 0 ? <p className="muted">No tasks yet</p> : project.tasks.map((task) => (
+                    <div className="taskItem" key={task.id}>
+                      <div>
+                        <b>{task.title}</b>
+                        <small>{labelFromEnum(task.priority)} priority{task.assignee ? ` · ${task.assignee}` : ''}{task.dueDate ? ` · ${new Date(task.dueDate).toLocaleDateString()}` : ''}</small>
+                      </div>
+                      <select value={task.status} onChange={(event) => updateTaskStatus(task.id, event.target.value as TaskStatus)} disabled={saving === task.id}>
+                        {taskStatuses.map((status) => <option key={status} value={status}>{labelFromEnum(status)}</option>)}
+                      </select>
+                    </div>
+                  ))}
+                </div>
+              </article>
+            ))}
           </div>
         </section>
 
