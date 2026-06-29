@@ -52,6 +52,12 @@ enum PaymentStatus {
   REVERSED
 }
 
+enum EmailStatus {
+  QUEUED
+  SENT
+  FAILED
+}
+
 enum PurchaseOrderStatus {
   DRAFT
   ORDERED
@@ -121,6 +127,7 @@ model Company {
   inventoryItems InventoryItem[]
   purchaseOrders PurchaseOrder[]
   auditLogs AuditLog[]
+  emailMessages EmailMessage[]
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
 }
@@ -158,6 +165,28 @@ model AuditLog {
   @@index([companyId, createdAt])
   @@index([companyId, entityType])
   @@index([actorId])
+}
+
+model EmailMessage {
+  id          String      @id @default(cuid())
+  to          String
+  subject     String
+  body        String
+  status      EmailStatus @default(QUEUED)
+  provider    String      @default("outbox")
+  error       String?
+  relatedType String?
+  relatedId   String?
+  sentAt      DateTime?
+  companyId   String
+  company     Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@index([companyId])
+  @@index([companyId, status])
+  @@index([companyId, createdAt])
+  @@index([companyId, relatedType])
 }
 
 model Employee {
