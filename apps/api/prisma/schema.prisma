@@ -44,6 +44,14 @@ enum PaymentStatus {
   REVERSED
 }
 
+enum DealStage {
+  NEW_LEAD
+  CONTACTED
+  PROPOSAL_SENT
+  WON
+  LOST
+}
+
 model Company {
   id        String     @id @default(cuid())
   name      String
@@ -57,6 +65,7 @@ model Company {
   products  Product[]
   invoices  Invoice[]
   payments  Payment[]
+  deals     Deal[]
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
 }
@@ -106,11 +115,31 @@ model Customer {
   companyId String
   company   Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
   invoices  Invoice[]
+  deals     Deal[]
   createdAt DateTime       @default(now())
   updatedAt DateTime       @updatedAt
 
   @@index([companyId])
   @@index([companyId, status])
+}
+
+model Deal {
+  id                String    @id @default(cuid())
+  title             String
+  stage             DealStage @default(NEW_LEAD)
+  value             Decimal   @default(0) @db.Decimal(12, 2)
+  expectedCloseDate DateTime?
+  notes             String?
+  customerId        String
+  customer          Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  companyId         String
+  company           Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([companyId])
+  @@index([companyId, stage])
+  @@index([customerId])
 }
 
 model Product {
