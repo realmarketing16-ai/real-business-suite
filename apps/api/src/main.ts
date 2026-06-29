@@ -4,7 +4,7 @@ import { AppModule } from './app.module';
 import { applySecurityHeaders } from './security/headers';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { rawBody: true });
   app.setGlobalPrefix('api');
   applySecurityHeaders(app);
   app.enableCors({ origin: process.env.WEB_URL ?? 'http://localhost:3000' });
