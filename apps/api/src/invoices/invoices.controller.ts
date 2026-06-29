@@ -2,6 +2,7 @@ import { BadRequestException, Body, Controller, Get, NotFoundException, Param, P
 import { InvoiceStatus, Prisma } from '@prisma/client';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { AuthenticatedUser, JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { ensureManagerOrAbove } from '../auth/roles';
 import { EmailService } from '../email/email.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateInvoiceDto, RecordPaymentDto, UpdateInvoiceStatusDto } from './invoices.dto';
@@ -134,6 +135,7 @@ export class InvoicesController {
 
   @Post()
   async create(@CurrentUser() user: AuthenticatedUser, @Body() input: CreateInvoiceDto) {
+    ensureManagerOrAbove(user, 'create invoices');
     const customer = await this.prisma.customer.findFirst({ where: { id: input.customerId, companyId: user.companyId } });
     if (!customer) throw new NotFoundException('Customer not found');
 
@@ -190,6 +192,7 @@ export class InvoicesController {
 
   @Post(':id/email')
   async emailInvoice(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+    ensureManagerOrAbove(user, 'queue invoice emails');
     const invoice = await this.prisma.invoice.findFirst({
       where: { id, companyId: user.companyId },
       include: { company: true, customer: true },
@@ -220,6 +223,7 @@ export class InvoicesController {
 
   @Patch(':id/status')
   async updateStatus(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string, @Body() input: UpdateInvoiceStatusDto) {
+    ensureManagerOrAbove(user, 'update invoice statuses');
     await this.ensureInvoice(user.companyId, id);
     const invoice = await this.prisma.invoice.update({
       where: { id },
@@ -231,6 +235,7 @@ export class InvoicesController {
 
   @Post(':id/payments')
   async recordPayment(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string, @Body() input: RecordPaymentDto) {
+    ensureManagerOrAbove(user, 'record payments');
     const invoice = await this.ensureInvoice(user.companyId, id);
     await this.prisma.payment.create({
       data: {

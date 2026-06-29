@@ -2,6 +2,7 @@ import { BadRequestException, Body, Controller, Get, NotFoundException, Param, P
 import { Prisma } from '@prisma/client';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { AuthenticatedUser, JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { ensureManagerOrAbove } from '../auth/roles';
 import { EmailService } from '../email/email.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateQuoteDto, UpdateQuoteStatusDto } from './quotes.dto';
@@ -51,6 +52,7 @@ export class QuotesController {
 
   @Post()
   async create(@CurrentUser() user: AuthenticatedUser, @Body() input: CreateQuoteDto) {
+    ensureManagerOrAbove(user, 'create quotes');
     const customer = await this.prisma.customer.findFirst({ where: { id: input.customerId, companyId: user.companyId } });
     if (!customer) throw new NotFoundException('Customer not found');
 
@@ -93,6 +95,7 @@ export class QuotesController {
 
   @Patch(':id/status')
   async updateStatus(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string, @Body() input: UpdateQuoteStatusDto) {
+    ensureManagerOrAbove(user, 'update quote statuses');
     await this.ensureQuote(user.companyId, id);
     const quote = await this.prisma.quote.update({
       where: { id },
@@ -104,6 +107,7 @@ export class QuotesController {
 
   @Post(':id/email')
   async emailQuote(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+    ensureManagerOrAbove(user, 'queue quote emails');
     const quote = await this.prisma.quote.findFirst({
       where: { id, companyId: user.companyId },
       include: { company: true, customer: true },

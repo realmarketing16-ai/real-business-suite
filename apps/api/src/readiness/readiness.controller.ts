@@ -1,10 +1,10 @@
-import { Controller, ForbiddenException, Get, UseGuards } from '@nestjs/common';
+import { Controller, Get, UseGuards } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Role } from '@prisma/client';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { AuthenticatedUser, JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { ensureOwnerOrAdmin } from '../auth/roles';
 import { PrismaService } from '../prisma/prisma.service';
 
 type ReadinessStatus = 'PASS' | 'WARN' | 'FAIL';
@@ -27,9 +27,7 @@ export class ReadinessController {
 
   @Get()
   async status(@CurrentUser() user: AuthenticatedUser) {
-    if (user.role !== Role.OWNER && user.role !== Role.ADMIN) {
-      throw new ForbiddenException('Only owners and admins can view readiness status');
-    }
+    ensureOwnerOrAdmin(user, 'view readiness status');
 
     const checks: ReadinessCheck[] = [];
     const databaseOk = await this.databaseCheck();

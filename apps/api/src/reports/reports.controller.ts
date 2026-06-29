@@ -1,6 +1,7 @@
 import { Controller, Get, Header, Param, Res, UseGuards } from '@nestjs/common';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { AuthenticatedUser, JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { ensureManagerOrAbove } from '../auth/roles';
 import { PrismaService } from '../prisma/prisma.service';
 
 type ExportType = 'profit-loss' | 'customers' | 'invoices' | 'expenses';
@@ -57,6 +58,7 @@ export class ReportsController {
   @Get('export/:type')
   @Header('Content-Type', 'text/csv; charset=utf-8')
   async export(@CurrentUser() user: AuthenticatedUser, @Param('type') type: ExportType, @Res({ passthrough: true }) response: any) {
+    ensureManagerOrAbove(user, 'export reports');
     const rows = await this.rowsForExport(user.companyId, type);
     response.setHeader('Content-Disposition', `attachment; filename="${type}.csv"`);
     return toCsv(rows);
