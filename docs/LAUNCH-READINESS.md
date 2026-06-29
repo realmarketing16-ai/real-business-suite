@@ -31,6 +31,7 @@ Use this checklist before letting real customers rely on Real Business Suite.
 
 - [ ] Production migrations run with `pnpm db:deploy`.
 - [ ] Database backup completed before launch.
+- [ ] Backup checksum captured and stored securely.
 - [ ] Restore has been tested from a backup.
 - [ ] Daily automated backups are enabled.
 - [ ] Backup retention policy is defined.

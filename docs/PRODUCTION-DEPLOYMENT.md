@@ -108,11 +108,15 @@ Local/container backup:
 .\scripts\backup-db.ps1
 ```
 
+The backup helper writes both a `.sql` file and a `.sha256` checksum file into `.\backups`.
+
 Restore into local/container database:
 
 ```powershell
-.\scripts\restore-db.ps1 -BackupFile .\backups\real_business_suite-YYYYMMDD-HHMMSS.sql
+.\scripts\restore-db.ps1 -BackupFile .\backups\real_business_suite-YYYYMMDD-HHMMSS.sql -ExpectedSha256 "checksum-from-.sha256-file"
 ```
+
+The restore helper requires typing `RESTORE` before it writes to the database. Use `-Force` only for non-interactive restore drills or automation.
 
 Production hosts should use managed PostgreSQL automated backups plus manual backup before releases.
 
@@ -121,6 +125,7 @@ Production hosts should use managed PostgreSQL automated backups plus manual bac
 - CI is green on `main`.
 - `pnpm db:deploy` completed.
 - Backup completed and restore process has been tested.
+- Backup checksum has been captured and stored securely.
 - API health endpoint responds.
 - Owner/admin readiness page reports no failed checks.
 - Browser/API responses include the expected security headers.
