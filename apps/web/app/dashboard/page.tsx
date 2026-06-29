@@ -58,6 +58,17 @@ type ProductType = 'PRODUCT' | 'SERVICE';
 type Product = { id: string; name: string; description?: string | null; type: ProductType; unitPrice: number; active: boolean };
 type ProductForm = { name: string; description: string; type: ProductType; unitPrice: string };
 
+type QuoteStatus = 'DRAFT' | 'SENT' | 'ACCEPTED' | 'DECLINED' | 'EXPIRED';
+type Quote = {
+  id: string;
+  quoteNo: string;
+  status: QuoteStatus;
+  validUntil?: string | null;
+  total: number;
+  customer: Customer;
+};
+type QuoteForm = { customerId: string; validUntil: string; productId: string; description: string; quantity: string; unitPrice: string; tax: string; notes: string };
+
 type InvoiceStatus = 'DRAFT' | 'SENT' | 'PAID' | 'OVERDUE' | 'VOID';
 type Invoice = {
   id: string;
@@ -101,6 +112,7 @@ const emptyEmployeeForm: EmployeeForm = { employeeNo: '', firstName: '', lastNam
 const emptyCustomerForm: CustomerForm = { name: '', email: '', phone: '', companyName: '', status: 'LEAD', notes: '' };
 const emptyDealForm: DealForm = { title: '', customerId: '', stage: 'NEW_LEAD', value: '', expectedCloseDate: '', notes: '' };
 const emptyProductForm: ProductForm = { name: '', description: '', type: 'SERVICE', unitPrice: '' };
+const emptyQuoteForm: QuoteForm = { customerId: '', validUntil: '', productId: '', description: '', quantity: '1', unitPrice: '', tax: '0', notes: '' };
 const emptyInvoiceForm: InvoiceForm = { customerId: '', dueDate: '', productId: '', description: '', quantity: '1', unitPrice: '', tax: '0', notes: '' };
 const emptyPaymentForm: PaymentForm = { invoiceId: '', amount: '', method: 'Bank transfer', reference: '' };
 const emptyExpenseForm: ExpenseForm = { vendor: '', category: 'OPERATIONS', amount: '', spentAt: '', description: '', receiptUrl: '' };
@@ -158,6 +170,7 @@ export default function DashboardPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [deals, setDeals] = useState<Deal[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+  const [quotes, setQuotes] = useState<Quote[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -167,6 +180,7 @@ export default function DashboardPage() {
   const [customerForm, setCustomerForm] = useState<CustomerForm>(emptyCustomerForm);
   const [dealForm, setDealForm] = useState<DealForm>(emptyDealForm);
   const [productForm, setProductForm] = useState<ProductForm>(emptyProductForm);
+  const [quoteForm, setQuoteForm] = useState<QuoteForm>(emptyQuoteForm);
   const [invoiceForm, setInvoiceForm] = useState<InvoiceForm>(emptyInvoiceForm);
   const [paymentForm, setPaymentForm] = useState<PaymentForm>(emptyPaymentForm);
   const [expenseForm, setExpenseForm] = useState<ExpenseForm>(emptyExpenseForm);
@@ -182,7 +196,9 @@ export default function DashboardPage() {
   const activeEmployee = useMemo(() => employees.find((employee) => employee.id === editingEmployeeId), [editingEmployeeId, employees]);
   const activeProducts = products.filter((product) => product.active);
   const openInvoices = invoices.filter((invoice) => invoice.status !== 'PAID' && invoice.status !== 'VOID');
+  const openQuotes = quotes.filter((quote) => quote.status === 'DRAFT' || quote.status === 'SENT');
   const pipelineStages: DealStage[] = ['NEW_LEAD', 'CONTACTED', 'PROPOSAL_SENT', 'WON', 'LOST'];
+  const quoteStatuses: QuoteStatus[] = ['DRAFT', 'SENT', 'ACCEPTED', 'DECLINED', 'EXPIRED'];
   const expenseCategories: ExpenseCategory[] = ['OPERATIONS', 'MARKETING', 'PAYROLL', 'SOFTWARE', 'RENT', 'TRAVEL', 'TAX', 'OTHER'];
   const projectStatuses: ProjectStatus[] = ['PLANNED', 'ACTIVE', 'ON_HOLD', 'COMPLETED'];
   const taskStatuses: TaskStatus[] = ['TODO', 'IN_PROGRESS', 'DONE', 'BLOCKED'];
@@ -192,13 +208,14 @@ export default function DashboardPage() {
 
   async function loadDashboard() {
     setError('');
-    const [nextSummary, nextCompany, nextEmployees, nextCustomers, nextDeals, nextProducts, nextInvoices, nextExpenses, nextProjects, nextTeamMembers, nextReports] = await Promise.all([
+    const [nextSummary, nextCompany, nextEmployees, nextCustomers, nextDeals, nextProducts, nextQuotes, nextInvoices, nextExpenses, nextProjects, nextTeamMembers, nextReports] = await Promise.all([
       api<Summary>('/dashboard/summary'),
       api<Company>('/company'),
       api<Employee[]>('/employees'),
       api<Customer[]>('/customers'),
       api<Deal[]>('/deals'),
       api<Product[]>('/products'),
+      api<Quote[]>('/quotes'),
       api<Invoice[]>('/invoices'),
       api<Expense[]>('/expenses'),
       api<Project[]>('/projects'),
@@ -212,6 +229,7 @@ export default function DashboardPage() {
     setCustomers(nextCustomers);
     setDeals(nextDeals);
     setProducts(nextProducts);
+    setQuotes(nextQuotes);
     setInvoices(nextInvoices);
     setExpenses(nextExpenses);
     setProjects(nextProjects);
@@ -223,6 +241,11 @@ export default function DashboardPage() {
       productId: current.productId || nextProducts.find((product) => product.active)?.id || '',
     }));
     setDealForm((current) => ({ ...current, customerId: current.customerId || nextCustomers[0]?.id || '' }));
+    setQuoteForm((current) => ({
+      ...current,
+      customerId: current.customerId || nextCustomers[0]?.id || '',
+      productId: current.productId || nextProducts.find((product) => product.active)?.id || '',
+    }));
     setPaymentForm((current) => ({ ...current, invoiceId: current.invoiceId || nextInvoices.find((invoice) => invoice.balance > 0)?.id || '' }));
     setProjectForm((current) => ({ ...current, customerId: current.customerId || nextCustomers[0]?.id || '' }));
     setTaskForm((current) => ({ ...current, projectId: current.projectId || nextProjects[0]?.id || '' }));
@@ -417,6 +440,62 @@ export default function DashboardPage() {
       description: product?.name ?? current.description,
       unitPrice: product ? String(product.unitPrice) : current.unitPrice,
     }));
+  }
+
+  function chooseQuoteProduct(productId: string) {
+    const product = products.find((item) => item.id === productId);
+    setQuoteForm((current) => ({
+      ...current,
+      productId,
+      description: product?.name ?? current.description,
+      unitPrice: product ? String(product.unitPrice) : current.unitPrice,
+    }));
+  }
+
+  async function createQuote(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSaving('quote');
+    setError('');
+    setNotice('');
+    try {
+      const quote = await api<Quote>('/quotes', {
+        method: 'POST',
+        body: JSON.stringify({
+          customerId: quoteForm.customerId,
+          validUntil: cleanText(quoteForm.validUntil),
+          tax: Number(quoteForm.tax || 0),
+          notes: cleanText(quoteForm.notes),
+          items: [{
+            productId: cleanText(quoteForm.productId),
+            description: quoteForm.description.trim(),
+            quantity: Number(quoteForm.quantity),
+            unitPrice: Number(quoteForm.unitPrice),
+          }],
+        }),
+      });
+      setNotice(`${quote.quoteNo} was created for ${currency(quote.total)}.`);
+      setQuoteForm({ ...emptyQuoteForm, customerId: customers[0]?.id ?? '', productId: activeProducts[0]?.id ?? '' });
+      await loadDashboard();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to create quote');
+    } finally {
+      setSaving('');
+    }
+  }
+
+  async function updateQuoteStatus(quoteId: string, status: QuoteStatus) {
+    setSaving(quoteId);
+    setError('');
+    setNotice('');
+    try {
+      await api<Quote>(`/quotes/${quoteId}/status`, { method: 'PATCH', body: JSON.stringify({ status }) });
+      setNotice(`Quote was marked ${labelFromEnum(status)}.`);
+      await loadDashboard();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to update quote');
+    } finally {
+      setSaving('');
+    }
   }
 
   async function createInvoice(event: FormEvent<HTMLFormElement>) {
@@ -678,7 +757,7 @@ export default function DashboardPage() {
       <aside className="sidebar">
         <div className="brand light"><span>R</span> RBS</div>
         <nav>
-          {['Overview', 'Company', 'Team', 'Employees', 'Customers', 'Sales', 'Projects', 'Products', 'Invoices', 'Payments', 'Expenses', 'Reports'].map((item) => <a className="active" key={item}>{item}</a>)}
+          {['Overview', 'Company', 'Team', 'Employees', 'Customers', 'Sales', 'Quotes', 'Projects', 'Products', 'Invoices', 'Payments', 'Expenses', 'Reports'].map((item) => <a className="active" key={item}>{item}</a>)}
         </nav>
         <button className="signOut" onClick={signOut}>Sign out</button>
       </aside>
@@ -706,6 +785,7 @@ export default function DashboardPage() {
           <article><span>Team members</span><b>{summary?.metrics.teamMembers ?? (loading ? '-' : 0)}</b><small>{summary?.metrics.admins ?? 0} admins/owners</small></article>
           <article><span>Open pipeline</span><b>{loading ? '-' : currency(summary?.metrics.pipelineValue)}</b><small>{summary?.metrics.openDeals ?? 0} open deals</small></article>
           <article><span>Won deals</span><b>{loading ? '-' : currency(summary?.metrics.wonDealValue)}</b><small>{summary?.metrics.conversionRate ?? 0}% conversion</small></article>
+          <article><span>Open quotes</span><b>{openQuotes.length}</b><small>{quotes.length} total estimates</small></article>
           <article><span>Customers</span><b>{summary?.metrics.customers ?? (loading ? '-' : 0)}</b><small>{summary?.metrics.activeCustomers ?? 0} active</small></article>
           <article><span>Open invoices</span><b>{summary?.metrics.openInvoices ?? (loading ? '-' : 0)}</b><small>{summary?.metrics.invoices ?? 0} total</small></article>
           <article><span>Total employees</span><b>{summary?.metrics.employees ?? (loading ? '-' : 0)}</b><small>{summary?.metrics.activeEmployees ?? 0} active</small></article>
@@ -962,6 +1042,28 @@ export default function DashboardPage() {
         <section className="recordsGrid">
           <article className="panel"><div className="panelHeading"><div><p className="eyebrow">CRM records</p><h2>Customers</h2></div><span className="badge">{customers.length} total</span></div><div className="tableWrap"><table className="dataTable"><thead><tr><th>Name</th><th>Company</th><th>Contact</th><th>Status</th></tr></thead><tbody>{customers.map((customer) => <tr key={customer.id}><td><b>{customer.name}</b></td><td>{customer.companyName || '-'}</td><td>{customer.email || customer.phone || '-'}</td><td><span className={`statusPill ${customer.status.toLowerCase()}`}>{customer.status.toLowerCase()}</span></td></tr>)}</tbody></table></div></article>
           <article className="panel"><div className="panelHeading"><div><p className="eyebrow">Catalog records</p><h2>Products/services</h2></div><span className="badge">{products.length} total</span></div><div className="tableWrap"><table className="dataTable"><thead><tr><th>Name</th><th>Type</th><th>Price</th><th>Status</th></tr></thead><tbody>{products.map((product) => <tr key={product.id}><td><b>{product.name}</b><small>{product.description || ''}</small></td><td>{product.type.toLowerCase()}</td><td>{currency(product.unitPrice)}</td><td><span className={`statusPill ${product.active ? 'active' : 'inactive'}`}>{product.active ? 'active' : 'inactive'}</span></td></tr>)}</tbody></table></div></article>
+        </section>
+
+        <section className="recordsGrid">
+          <article className="panel">
+            <div className="panelHeading"><div><p className="eyebrow">Quotes</p><h2>Create estimate</h2></div><span className="badge">{openQuotes.length} open</span></div>
+            <form className="companyForm" onSubmit={createQuote}>
+              <label>Customer<select required value={quoteForm.customerId} onChange={(event) => setQuoteForm((current) => ({ ...current, customerId: event.target.value }))}><option value="">Choose customer</option>{customers.map((customer) => <option key={customer.id} value={customer.id}>{customer.name}</option>)}</select></label>
+              <label>Valid until<input type="date" value={quoteForm.validUntil} onChange={(event) => setQuoteForm((current) => ({ ...current, validUntil: event.target.value }))} /></label>
+              <label>Product/service<select value={quoteForm.productId} onChange={(event) => chooseQuoteProduct(event.target.value)}><option value="">Custom line item</option>{activeProducts.map((product) => <option key={product.id} value={product.id}>{product.name} - {currency(product.unitPrice)}</option>)}</select></label>
+              <label>Description<input required minLength={2} value={quoteForm.description} onChange={(event) => setQuoteForm((current) => ({ ...current, description: event.target.value }))} /></label>
+              <label>Quantity<input required type="number" min="0.01" step="0.01" value={quoteForm.quantity} onChange={(event) => setQuoteForm((current) => ({ ...current, quantity: event.target.value }))} /></label>
+              <label>Unit price<input required type="number" min="0" step="0.01" value={quoteForm.unitPrice} onChange={(event) => setQuoteForm((current) => ({ ...current, unitPrice: event.target.value }))} /></label>
+              <label>Tax<input type="number" min="0" step="0.01" value={quoteForm.tax} onChange={(event) => setQuoteForm((current) => ({ ...current, tax: event.target.value }))} /></label>
+              <label className="wideField">Notes<textarea value={quoteForm.notes} onChange={(event) => setQuoteForm((current) => ({ ...current, notes: event.target.value }))} /></label>
+              <button className="button" disabled={saving === 'quote' || customers.length === 0}>{saving === 'quote' ? 'Creating...' : 'Create quote'}</button>
+            </form>
+          </article>
+          <article className="panel widePanel">
+            <div className="panelHeading"><div><p className="eyebrow">Estimates</p><h2>Quote pipeline</h2></div><span className="badge">{quotes.length} total</span></div>
+            <div className="tableWrap"><table className="dataTable"><thead><tr><th>Quote</th><th>Customer</th><th>Total</th><th>Status</th><th>Valid until</th><th>Action</th></tr></thead><tbody>{quotes.map((quote) => <tr key={quote.id}><td><b>{quote.quoteNo}</b></td><td>{quote.customer.name}</td><td>{currency(quote.total)}</td><td><span className={`statusPill ${quote.status.toLowerCase()}`}>{labelFromEnum(quote.status)}</span></td><td>{quote.validUntil ? new Date(quote.validUntil).toLocaleDateString() : '-'}</td><td><select value={quote.status} onChange={(event) => updateQuoteStatus(quote.id, event.target.value as QuoteStatus)} disabled={saving === quote.id}>{quoteStatuses.map((status) => <option key={status} value={status}>{labelFromEnum(status)}</option>)}</select></td></tr>)}</tbody></table></div>
+            {quotes.length === 0 && <div className="emptyState"><h3>No quotes yet</h3><p className="muted">Create estimates before sending invoices for approved work.</p></div>}
+          </article>
         </section>
 
         <section className="recordsGrid">

@@ -10,6 +10,7 @@ import { ExpensesModule } from './expenses/expenses.module';
 import { InvoicesModule } from './invoices/invoices.module';
 import { ProductsModule } from './products/products.module';
 import { ProjectsModule } from './projects/projects.module';
+import { QuotesModule } from './quotes/quotes.module';
 import { ReportsModule } from './reports/reports.module';
 import { TeamModule } from './team/team.module';
 import { HealthController } from './health.controller';
@@ -27,6 +28,7 @@ import { PrismaModule } from './prisma/prisma.module';
     ExpensesModule,
     ProductsModule,
     ProjectsModule,
+    QuotesModule,
     InvoicesModule,
     ReportsModule,
     TeamModule,
