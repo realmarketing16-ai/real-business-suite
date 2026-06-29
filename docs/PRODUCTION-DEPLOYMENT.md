@@ -48,6 +48,7 @@ Database container/local compose:
 
    - API health: `GET /api/health`
    - Login/register flow
+   - Password reset request and reset-token flow
    - Dashboard load
    - Create customer/product/invoice
    - Download invoice PDF
@@ -130,5 +131,6 @@ Production hosts should use managed PostgreSQL automated backups plus manual bac
 - Owner/admin readiness page reports no failed checks.
 - Browser/API responses include the expected security headers.
 - Email mode is intentional (`dry-run` for test, Resend for launch).
+- Password reset emails are delivered successfully or intentionally dry-run during test.
 - First owner account credentials are stored securely.
 - No `.env` secrets are committed.
