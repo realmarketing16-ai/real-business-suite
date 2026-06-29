@@ -106,6 +106,7 @@ enum TaskPriority {
 }
 
 enum SubscriptionPlan {
+  FREE
   STARTER
   BUSINESS
   PRO
@@ -148,7 +149,7 @@ model Company {
 
 model Subscription {
   id                   String             @id @default(cuid())
-  plan                 SubscriptionPlan   @default(STARTER)
+  plan                 SubscriptionPlan   @default(FREE)
   status               SubscriptionStatus @default(TRIALING)
   trialEndsAt          DateTime?
   currentPeriodEndsAt  DateTime?

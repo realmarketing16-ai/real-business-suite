@@ -121,7 +121,7 @@ type EmailStatus = 'QUEUED' | 'SENT' | 'FAILED';
 type EmailMessage = { id: string; to: string; subject: string; bodyPreview: string; status: EmailStatus; relatedType?: string | null; createdAt: string };
 type ReadinessCheck = { key: string; label: string; status: 'PASS' | 'WARN' | 'FAIL'; detail: string };
 type ReadinessStatus = { status: 'READY' | 'NEEDS_REVIEW' | 'NOT_READY'; summary: { pass: number; warn: number; fail: number }; checkedAt: string; checks: ReadinessCheck[] };
-type SubscriptionPlan = 'STARTER' | 'BUSINESS' | 'PRO';
+type SubscriptionPlan = 'FREE' | 'STARTER' | 'BUSINESS' | 'PRO';
 type SubscriptionStatus = 'TRIALING' | 'ACTIVE' | 'PAST_DUE' | 'CANCELED';
 type BillingStatus = {
   subscription: {
@@ -1252,9 +1252,9 @@ export default function DashboardPage() {
                 <button className="button" onClick={() => updateBillingPlan(plan.plan)} disabled={billing?.subscription.plan === plan.plan || saving === `billing-${plan.plan}`}>
                   {saving === `billing-${plan.plan}` ? 'Saving...' : billing?.subscription.plan === plan.plan ? 'Selected' : `Choose ${labelFromEnum(plan.plan)}`}
                 </button>
-                <button className="ghostButton" onClick={() => startStripeCheckout(plan.plan)} disabled={!billing?.checkoutReady || saving === `checkout-${plan.plan}`}>
+                {plan.plan !== 'FREE' && <button className="ghostButton" onClick={() => startStripeCheckout(plan.plan)} disabled={!billing?.checkoutReady || saving === `checkout-${plan.plan}`}>
                   {saving === `checkout-${plan.plan}` ? 'Opening Stripe...' : billing?.checkoutReady ? `Pay for ${labelFromEnum(plan.plan)}` : 'Stripe setup required'}
-                </button>
+                </button>}
               </article>
             ))}
           </div>

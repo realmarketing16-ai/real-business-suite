@@ -7,7 +7,7 @@ import { AuthenticatedUser, JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ensureOwnerOrAdmin } from '../auth/roles';
 import { PrismaService } from '../prisma/prisma.service';
 
-type SubscriptionPlan = 'STARTER' | 'BUSINESS' | 'PRO';
+type SubscriptionPlan = 'FREE' | 'STARTER' | 'BUSINESS' | 'PRO';
 type SubscriptionStatus = 'TRIALING' | 'ACTIVE' | 'PAST_DUE' | 'CANCELED';
 type StripeSubscriptionStatus = 'trialing' | 'active' | 'past_due' | 'canceled' | 'unpaid' | 'incomplete' | 'incomplete_expired' | 'paused';
 type SubscriptionRecord = {
@@ -42,19 +42,21 @@ type StripeSubscription = {
 };
 
 const planPrices: Record<SubscriptionPlan, number> = {
+  FREE: 0,
   STARTER: 29,
   BUSINESS: 79,
   PRO: 149,
 };
 
 const planFeatures: Record<SubscriptionPlan, string[]> = {
+  FREE: ['Local testing', 'Company setup', 'Core dashboard preview', 'Manual upgrade path'],
   STARTER: ['Core CRM', 'Invoices and quotes', 'Reports exports', 'Email outbox'],
   BUSINESS: ['Everything in Starter', 'Inventory and purchasing', 'Projects and tasks', 'Team roles'],
   PRO: ['Everything in Business', 'Advanced audit history', 'Priority support readiness', 'Multi-location scaling path'],
 };
 
 class UpdateSubscriptionPlanDto {
-  @IsIn(['STARTER', 'BUSINESS', 'PRO'])
+  @IsIn(['FREE', 'STARTER', 'BUSINESS', 'PRO'])
   plan!: SubscriptionPlan;
 }
 
@@ -89,10 +91,14 @@ export class BillingController {
       create: {
         companyId: user.companyId,
         plan: input.plan,
-        status: 'TRIALING',
-        trialEndsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+        status: input.plan === 'FREE' ? 'ACTIVE' : 'TRIALING',
+        trialEndsAt: input.plan === 'FREE' ? null : new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
       },
-      update: { plan: input.plan },
+      update: {
+        plan: input.plan,
+        status: input.plan === 'FREE' ? 'ACTIVE' : undefined,
+        trialEndsAt: input.plan === 'FREE' ? null : undefined,
+      },
     });
 
     await this.prisma.auditLog.create({
@@ -115,6 +121,9 @@ export class BillingController {
   async checkout(@CurrentUser() user: AuthenticatedUser, @Body() input: UpdateSubscriptionPlanDto) {
     ensureOwnerOrAdmin(user, 'manage billing');
     const stripeSecretKey = this.config.get<string>('STRIPE_SECRET_KEY', '');
+    if (input.plan === 'FREE') {
+      throw new BadRequestException('The Free plan does not require Stripe checkout. Choose it directly from Billing.');
+    }
     if (!stripeSecretKey) {
       throw new BadRequestException('Stripe is not configured yet. Set STRIPE_SECRET_KEY before starting checkout.');
     }
@@ -186,9 +195,9 @@ export class BillingController {
       where: { companyId },
       create: {
         companyId,
-        plan: 'STARTER',
-        status: 'TRIALING',
-        trialEndsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+        plan: 'FREE',
+        status: 'ACTIVE',
+        trialEndsAt: null,
       },
       update: {},
     });

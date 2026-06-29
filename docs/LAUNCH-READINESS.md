@@ -31,6 +31,7 @@ Use this checklist before letting real customers rely on Real Business Suite.
 - [ ] Auth rate limits tested for login and password reset endpoints.
 - [ ] Auth audit events reviewed for registration, login, and password reset activity.
 - [ ] Billing plan/status reviewed and Stripe keys configured before taking customer payments.
+- [ ] Free plan behavior tested before paid launch.
 - [ ] Stripe checkout and webhook tested in test mode.
 - [ ] Past-due/canceled subscription access limits tested.
 

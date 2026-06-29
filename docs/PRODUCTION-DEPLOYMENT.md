@@ -115,7 +115,7 @@ Registration, successful login, password-reset request, and completed password-r
 
 ## Billing and subscriptions
 
-New companies start on a 14-day `STARTER` trial. Owners/admins can view and change the tracked plan from the dashboard Billing section.
+New companies start on the `FREE` plan so owners can test locally or run a private pilot without paying for Stripe or production services first. Owners/admins can view and change the tracked plan from the dashboard Billing section.
 
 The app creates Stripe Checkout sessions from the dashboard Billing section and listens for Stripe subscription events at:
 
@@ -128,7 +128,7 @@ Configure that webhook endpoint in Stripe and set:
 
 Before public paid launch, confirm your pricing, tax handling, refund policy, and subscription cancellation flow. Use Stripe test mode first, then switch to live keys only after a successful test checkout and webhook sync.
 
-Accounts with `TRIALING` or `ACTIVE` subscriptions can use the business suite. Accounts marked `PAST_DUE` or `CANCELED` see a billing warning and business creation/export actions are limited while Billing remains available for owner/admin recovery.
+Accounts with `FREE`, `TRIALING`, or `ACTIVE` access can use the business suite. Accounts marked `PAST_DUE` or `CANCELED` see a billing warning and business creation/export actions are limited while Billing remains available for owner/admin recovery.
 
 ## Backups
 
