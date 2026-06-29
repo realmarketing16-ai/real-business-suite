@@ -113,6 +113,7 @@ type ProjectForm = { name: string; customerId: string; status: ProjectStatus; bu
 type TaskForm = { projectId: string; title: string; status: TaskStatus; priority: TaskPriority; dueDate: string; assignee: string; description: string };
 
 type Role = 'OWNER' | 'ADMIN' | 'MANAGER' | 'EMPLOYEE';
+type CurrentUser = { email: string; firstName?: string; lastName?: string; role: Role };
 type TeamMember = { id: string; email: string; firstName: string; lastName: string; role: Role; createdAt: string };
 type TeamMemberForm = { firstName: string; lastName: string; email: string; password: string; role: Role };
 type AuditLog = { id: string; action: string; entityType: string; entityId?: string | null; description: string; actorName: string; createdAt: string };
@@ -178,6 +179,15 @@ function labelFromEnum(value: string) {
   return value.toLowerCase().replace('_', ' ').replace('_', ' ');
 }
 
+function getStoredUser(): CurrentUser | null {
+  try {
+    const rawUser = window.localStorage.getItem('rbs_user');
+    return rawUser ? JSON.parse(rawUser) as CurrentUser : null;
+  } catch {
+    return null;
+  }
+}
+
 export default function DashboardPage() {
   const router = useRouter();
   const [summary, setSummary] = useState<Summary | null>(null);
@@ -199,6 +209,7 @@ export default function DashboardPage() {
   const [emailMessages, setEmailMessages] = useState<EmailMessage[]>([]);
   const [readiness, setReadiness] = useState<ReadinessStatus | null>(null);
   const [reports, setReports] = useState<ReportSummary | null>(null);
+  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [employeeForm, setEmployeeForm] = useState<EmployeeForm>(emptyEmployeeForm);
   const [customerForm, setCustomerForm] = useState<CustomerForm>(emptyCustomerForm);
   const [dealForm, setDealForm] = useState<DealForm>(emptyDealForm);
@@ -234,6 +245,10 @@ export default function DashboardPage() {
   const taskPriorities: TaskPriority[] = ['LOW', 'MEDIUM', 'HIGH', 'URGENT'];
   const roles: Role[] = ['OWNER', 'ADMIN', 'MANAGER', 'EMPLOYEE'];
   const companyName = company?.name ?? summary?.company.name ?? 'your company';
+  const currentRole = currentUser?.role ?? 'EMPLOYEE';
+  const isOwnerOrAdmin = currentRole === 'OWNER' || currentRole === 'ADMIN';
+  const canManageBusiness = isOwnerOrAdmin || currentRole === 'MANAGER';
+  const navItems = ['Overview', 'Company', 'Team', 'Employees', 'Customers', 'Sales', 'Quotes', 'Inventory', 'Purchasing', 'Projects', 'Products', 'Invoices', 'Payments', 'Expenses', 'Reports', ...(isOwnerOrAdmin ? ['Audit'] : [])];
 
   async function loadDashboard() {
     setError('');
@@ -297,6 +312,7 @@ export default function DashboardPage() {
   }
 
   useEffect(() => {
+    setCurrentUser(getStoredUser());
     loadDashboard()
       .catch((cause) => {
         const message = cause instanceof Error ? cause.message : 'Unable to load dashboard';
@@ -974,7 +990,7 @@ export default function DashboardPage() {
       <aside className="sidebar">
         <div className="brand light"><span>R</span> RBS</div>
         <nav>
-          {['Overview', 'Company', 'Team', 'Audit', 'Employees', 'Customers', 'Sales', 'Quotes', 'Inventory', 'Purchasing', 'Projects', 'Products', 'Invoices', 'Payments', 'Expenses', 'Reports'].map((item) => <a className="active" key={item}>{item}</a>)}
+          {navItems.map((item) => <a className="active" key={item}>{item}</a>)}
         </nav>
         <button className="signOut" onClick={signOut}>Sign out</button>
       </aside>
@@ -985,11 +1001,15 @@ export default function DashboardPage() {
             <p className="eyebrow">Founder dashboard</p>
             <h1>{summary ? `Welcome to ${companyName}` : 'Welcome back'}</h1>
           </div>
-          <div className="avatar">RB</div>
+          <div className="rowActions">
+            <span className="badge">{labelFromEnum(currentRole)}</span>
+            <div className="avatar">RB</div>
+          </div>
         </header>
 
         {error && <p className="error">{error}</p>}
         {notice && <p className="success">{notice}</p>}
+        {!canManageBusiness && <p className="muted">You are signed in with employee access. Create, billing, admin, and export controls are hidden; task status updates remain available.</p>}
 
         <div className="stats">
           <article><span>Revenue collected</span><b>{loading ? '-' : currency(summary?.metrics.revenue)}</b><small>Recorded payments</small></article>
@@ -1034,7 +1054,7 @@ export default function DashboardPage() {
           </article>
         </div>
 
-        <section className="panel">
+        {isOwnerOrAdmin && <section className="panel">
           <div className="panelHeading">
             <div><p className="eyebrow">Launch readiness</p><h2>Production self-check</h2></div>
             <span className={`badge ${readiness?.status?.toLowerCase() ?? ''}`}>{readiness ? labelFromEnum(readiness.status) : 'Not checked'}</span>
@@ -1046,10 +1066,10 @@ export default function DashboardPage() {
           </div>
           <div className="tableWrap"><table className="dataTable"><thead><tr><th>Check</th><th>Status</th><th>Detail</th></tr></thead><tbody>{(readiness?.checks ?? []).map((item) => <tr key={item.key}><td><b>{item.label}</b></td><td><span className={`statusPill ${item.status.toLowerCase()}`}>{labelFromEnum(item.status)}</span></td><td>{item.detail}</td></tr>)}</tbody></table></div>
           {!readiness && <div className="emptyState"><h3>Readiness unavailable</h3><p className="muted">Owners and admins will see production readiness checks here.</p></div>}
-        </section>
+        </section>}
 
         <section className="recordsGrid">
-          <article className="panel">
+          {isOwnerOrAdmin && <article className="panel">
             <div className="panelHeading"><div><p className="eyebrow">Team access</p><h2>Add team member</h2></div><span className="badge">{teamMembers.length} users</span></div>
             <form className="companyForm" onSubmit={saveTeamMember}>
               <label>First name<input required minLength={2} value={teamMemberForm.firstName} onChange={(event) => setTeamMemberForm((current) => ({ ...current, firstName: event.target.value }))} /></label>
@@ -1059,29 +1079,29 @@ export default function DashboardPage() {
               <label>Role<select value={teamMemberForm.role} onChange={(event) => setTeamMemberForm((current) => ({ ...current, role: event.target.value as Role }))}>{roles.map((role) => <option key={role} value={role}>{labelFromEnum(role)}</option>)}</select></label>
               <button className="button" disabled={saving === 'team'}>{saving === 'team' ? 'Adding...' : 'Add team member'}</button>
             </form>
-          </article>
+          </article>}
 
           <article className="panel">
             <div className="panelHeading"><div><p className="eyebrow">Access control</p><h2>Team members</h2></div><span className="badge">{summary?.metrics.admins ?? 0} admins</span></div>
-            <div className="tableWrap"><table className="dataTable"><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Joined</th></tr></thead><tbody>{teamMembers.map((member) => <tr key={member.id}><td><b>{member.firstName} {member.lastName}</b></td><td>{member.email}</td><td><select value={member.role} onChange={(event) => updateTeamRole(member.id, event.target.value as Role)} disabled={saving === member.id}>{roles.map((role) => <option key={role} value={role}>{labelFromEnum(role)}</option>)}</select></td><td>{new Date(member.createdAt).toLocaleDateString()}</td></tr>)}</tbody></table></div>
+            <div className="tableWrap"><table className="dataTable"><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Joined</th></tr></thead><tbody>{teamMembers.map((member) => <tr key={member.id}><td><b>{member.firstName} {member.lastName}</b></td><td>{member.email}</td><td>{isOwnerOrAdmin ? <select value={member.role} onChange={(event) => updateTeamRole(member.id, event.target.value as Role)} disabled={saving === member.id}>{roles.map((role) => <option key={role} value={role}>{labelFromEnum(role)}</option>)}</select> : labelFromEnum(member.role)}</td><td>{new Date(member.createdAt).toLocaleDateString()}</td></tr>)}</tbody></table></div>
           </article>
         </section>
 
-        <section className="panel">
+        {isOwnerOrAdmin && <section className="panel">
           <div className="panelHeading"><div><p className="eyebrow">Audit trail</p><h2>Recent company activity</h2></div><span className="badge">{auditLogs.length} events</span></div>
           <div className="tableWrap"><table className="dataTable"><thead><tr><th>Action</th><th>Record</th><th>Actor</th><th>When</th></tr></thead><tbody>{auditLogs.map((log) => <tr key={log.id}><td><b>{log.description}</b><small>{labelFromEnum(log.action)}</small></td><td>{labelFromEnum(log.entityType)}</td><td>{log.actorName}</td><td>{new Date(log.createdAt).toLocaleString()}</td></tr>)}</tbody></table></div>
           {auditLogs.length === 0 && <div className="emptyState"><h3>No audit events yet</h3><p className="muted">Owners and admins will see company changes here as the team works.</p></div>}
-        </section>
+        </section>}
 
-        <section className="panel">
+        {isOwnerOrAdmin && <section className="panel">
           <div className="panelHeading"><div><p className="eyebrow">Email outbox</p><h2>Queued business emails</h2></div><span className="badge">{emailMessages.length} messages</span></div>
           <div className="exportActions"><button className="ghostButton" onClick={sendQueuedEmails} disabled={saving === 'email-send-queued' || emailMessages.filter((message) => message.status === 'QUEUED').length === 0}>{saving === 'email-send-queued' ? 'Sending...' : 'Send queued emails'}</button></div>
           <div className="tableWrap"><table className="dataTable"><thead><tr><th>Email</th><th>Related</th><th>Status</th><th>Queued</th><th>Action</th></tr></thead><tbody>{emailMessages.map((message) => <tr key={message.id}><td><b>{message.subject}</b><small>To {message.to} Â· {message.bodyPreview}</small></td><td>{message.relatedType ? labelFromEnum(message.relatedType) : '-'}</td><td><span className={`statusPill ${message.status.toLowerCase()}`}>{labelFromEnum(message.status)}</span></td><td>{new Date(message.createdAt).toLocaleString()}</td><td>{message.status !== 'SENT' && <button className="ghostButton" onClick={() => sendEmailMessage(message)} disabled={saving === `email-send-${message.id}`}>{saving === `email-send-${message.id}` ? 'Sending...' : 'Send'}</button>}</td></tr>)}</tbody></table></div>
           {emailMessages.length === 0 && <div className="emptyState"><h3>No emails queued yet</h3><p className="muted">Invoice, quote, and team invite messages will appear here before SMTP delivery is connected.</p></div>}
-        </section>
+        </section>}
 
-        <section className="operationsGrid">
-          <article className="panel companyFormPanel">
+        {canManageBusiness && <section className="operationsGrid">
+          {isOwnerOrAdmin && <article className="panel companyFormPanel">
             <div className="panelHeading"><div><p className="eyebrow">Company settings</p><h2>Business profile</h2></div><span className="badge">Profile</span></div>
             <form className="companyForm" onSubmit={saveCompany}>
               <label>Company name<input required minLength={2} value={companyForm.name} onChange={(event) => setCompanyForm((current) => ({ ...current, name: event.target.value }))} disabled={saving === 'company'} /></label>
@@ -1091,7 +1111,7 @@ export default function DashboardPage() {
               <label className="wideField">Address<textarea value={companyForm.address} onChange={(event) => setCompanyForm((current) => ({ ...current, address: event.target.value }))} disabled={saving === 'company'} /></label>
               <button className="button" disabled={saving === 'company'}>{saving === 'company' ? 'Saving...' : 'Save company settings'}</button>
             </form>
-          </article>
+          </article>}
 
           <article className="panel">
             <div className="panelHeading"><div><p className="eyebrow">CRM</p><h2>Add customer or lead</h2></div><span className="badge">{customers.length} records</span></div>
@@ -1144,10 +1164,10 @@ export default function DashboardPage() {
               <button className="button" disabled={saving === 'invoice' || customers.length === 0}>{saving === 'invoice' ? 'Creating...' : 'Create invoice'}</button>
             </form>
           </article>
-        </section>
+        </section>}
 
         <section className="employeeSection">
-          <article className="panel employeeFormPanel">
+          {canManageBusiness && <article className="panel employeeFormPanel">
             <div className="panelHeading">
               <div><p className="eyebrow">Employee management</p><h2>{editingEmployeeId ? `Edit ${activeEmployee?.firstName ?? 'employee'}` : 'Add an employee'}</h2></div>
               {editingEmployeeId && <button className="ghostButton" onClick={() => { setEditingEmployeeId(null); setEmployeeForm(emptyEmployeeForm); }}>Cancel edit</button>}
@@ -1163,7 +1183,7 @@ export default function DashboardPage() {
               <label>Status<select value={employeeForm.status} onChange={(event) => setEmployeeField('status', event.target.value as EmployeeStatus)}><option value="ACTIVE">Active</option><option value="ON_LEAVE">On leave</option><option value="INACTIVE">Inactive</option></select></label>
               <button className="button" disabled={saving === 'employee'}>{saving === 'employee' ? 'Saving...' : editingEmployeeId ? 'Update employee' : 'Add employee'}</button>
             </form>
-          </article>
+          </article>}
 
           <article className="panel employeeListPanel">
             <div className="panelHeading"><div><p className="eyebrow">People records</p><h2>Employees</h2></div><span className="badge">{employees.length} total</span></div>
@@ -1176,7 +1196,7 @@ export default function DashboardPage() {
                       <td><div className="employeeIdentity"><span>{initials(employee.firstName, employee.lastName)}</span><div><b>{employee.firstName} {employee.lastName}</b><small>{employee.employeeNo}{employee.email ? ` · ${employee.email}` : ''}</small></div></div></td>
                       <td>{employee.jobTitle || '-'}</td><td>{employee.department || '-'}</td>
                       <td><span className={`statusPill ${employee.status.toLowerCase()}`}>{employee.status.replace('_', ' ')}</span></td>
-                      <td><button className="ghostButton" onClick={() => startEditEmployee(employee)}>Edit</button></td>
+                      <td>{canManageBusiness && <button className="ghostButton" onClick={() => startEditEmployee(employee)}>Edit</button>}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -1209,9 +1229,9 @@ export default function DashboardPage() {
                         <small>{deal.customer.name}{deal.expectedCloseDate ? ` · closes ${new Date(deal.expectedCloseDate).toLocaleDateString()}` : ''}</small>
                       </div>
                       <strong>{currency(deal.value)}</strong>
-                      <select value={deal.stage} onChange={(event) => updateDealStage(deal.id, event.target.value as DealStage)} disabled={saving === deal.id}>
+                      {canManageBusiness && <select value={deal.stage} onChange={(event) => updateDealStage(deal.id, event.target.value as DealStage)} disabled={saving === deal.id}>
                         {pipelineStages.map((nextStage) => <option key={nextStage} value={nextStage}>{dealStageLabel(nextStage)}</option>)}
-                      </select>
+                      </select>}
                     </article>
                   ))}
                 </div>
@@ -1220,7 +1240,7 @@ export default function DashboardPage() {
           </div>
         </section>
 
-        <section className="recordsGrid">
+        {canManageBusiness && <section className="recordsGrid">
           <article className="panel">
             <div className="panelHeading"><div><p className="eyebrow">Projects</p><h2>Create project</h2></div><span className="badge">{projects.length} projects</span></div>
             <form className="companyForm" onSubmit={saveProject}>
@@ -1248,7 +1268,7 @@ export default function DashboardPage() {
               <button className="button" disabled={saving === 'task' || projects.length === 0}>{saving === 'task' ? 'Adding...' : 'Add task'}</button>
             </form>
           </article>
-        </section>
+        </section>}
 
         <section className="panel">
           <div className="panelHeading">
@@ -1290,7 +1310,7 @@ export default function DashboardPage() {
           <article className="panel"><div className="panelHeading"><div><p className="eyebrow">Catalog records</p><h2>Products/services</h2></div><span className="badge">{products.length} total</span></div><div className="tableWrap"><table className="dataTable"><thead><tr><th>Name</th><th>Type</th><th>Price</th><th>Status</th></tr></thead><tbody>{products.map((product) => <tr key={product.id}><td><b>{product.name}</b><small>{product.description || ''}</small></td><td>{product.type.toLowerCase()}</td><td>{currency(product.unitPrice)}</td><td><span className={`statusPill ${product.active ? 'active' : 'inactive'}`}>{product.active ? 'active' : 'inactive'}</span></td></tr>)}</tbody></table></div></article>
         </section>
 
-        <section className="recordsGrid">
+        {canManageBusiness && <section className="recordsGrid">
           <article className="panel">
             <div className="panelHeading"><div><p className="eyebrow">Suppliers</p><h2>Add supplier</h2></div><span className="badge">{suppliers.length} vendors</span></div>
             <form className="companyForm" onSubmit={saveSupplier}>
@@ -1316,14 +1336,14 @@ export default function DashboardPage() {
               <button className="button" disabled={saving === 'inventory'}>{saving === 'inventory' ? 'Saving...' : 'Add inventory item'}</button>
             </form>
           </article>
-        </section>
+        </section>}
 
         <section className="recordsGrid">
           <article className="panel widePanel">
             <div className="panelHeading"><div><p className="eyebrow">Stock control</p><h2>Inventory records</h2></div><span className="badge">{inventoryItems.length} items</span></div>
             <div className="tableWrap"><table className="dataTable"><thead><tr><th>Item</th><th>Supplier</th><th>Qty</th><th>Reorder</th><th>Unit cost</th><th>Status</th></tr></thead><tbody>{inventoryItems.map((item) => <tr key={item.id}><td><b>{item.name}</b><small>{item.sku}{item.description ? ` Â· ${item.description}` : ''}</small></td><td>{item.supplier?.name || '-'}</td><td>{item.quantity}</td><td>{item.reorderLevel}</td><td>{currency(item.unitCost)}</td><td><span className={`statusPill ${item.quantity <= item.reorderLevel ? 'overdue' : 'active'}`}>{item.quantity <= item.reorderLevel ? 'reorder' : 'in stock'}</span></td></tr>)}</tbody></table></div>
           </article>
-          <article className="panel">
+          {canManageBusiness && <article className="panel">
             <div className="panelHeading"><div><p className="eyebrow">Purchasing</p><h2>Create purchase order</h2></div><span className="badge">{openPurchaseOrders.length} open</span></div>
             <form className="companyForm" onSubmit={createPurchaseOrder}>
               <label>Supplier<select required value={purchaseOrderForm.supplierId} onChange={(event) => setPurchaseOrderForm((current) => ({ ...current, supplierId: event.target.value }))}><option value="">Choose supplier</option>{suppliers.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.name}</option>)}</select></label>
@@ -1336,17 +1356,17 @@ export default function DashboardPage() {
               <label className="wideField">Notes<textarea value={purchaseOrderForm.notes} onChange={(event) => setPurchaseOrderForm((current) => ({ ...current, notes: event.target.value }))} /></label>
               <button className="button" disabled={saving === 'purchase-order' || suppliers.length === 0}>{saving === 'purchase-order' ? 'Creating...' : 'Create purchase order'}</button>
             </form>
-          </article>
+          </article>}
         </section>
 
         <section className="panel">
           <div className="panelHeading"><div><p className="eyebrow">Purchase orders</p><h2>Supplier order tracker</h2></div><span className="badge">{purchaseOrders.length} orders</span></div>
-          <div className="tableWrap"><table className="dataTable"><thead><tr><th>Order</th><th>Supplier</th><th>Total</th><th>Expected</th><th>Status</th><th>Action</th></tr></thead><tbody>{purchaseOrders.map((order) => <tr key={order.id}><td><b>{order.orderNo}</b></td><td>{order.supplier.name}</td><td>{currency(order.total)}</td><td>{order.expectedAt ? new Date(order.expectedAt).toLocaleDateString() : '-'}</td><td><span className={`statusPill ${order.status.toLowerCase()}`}>{labelFromEnum(order.status)}</span></td><td><select value={order.status} onChange={(event) => updatePurchaseOrderStatus(order.id, event.target.value as PurchaseOrderStatus)} disabled={saving === order.id}>{purchaseOrderStatuses.map((status) => <option key={status} value={status}>{labelFromEnum(status)}</option>)}</select></td></tr>)}</tbody></table></div>
+          <div className="tableWrap"><table className="dataTable"><thead><tr><th>Order</th><th>Supplier</th><th>Total</th><th>Expected</th><th>Status</th><th>Action</th></tr></thead><tbody>{purchaseOrders.map((order) => <tr key={order.id}><td><b>{order.orderNo}</b></td><td>{order.supplier.name}</td><td>{currency(order.total)}</td><td>{order.expectedAt ? new Date(order.expectedAt).toLocaleDateString() : '-'}</td><td><span className={`statusPill ${order.status.toLowerCase()}`}>{labelFromEnum(order.status)}</span></td><td>{canManageBusiness ? <select value={order.status} onChange={(event) => updatePurchaseOrderStatus(order.id, event.target.value as PurchaseOrderStatus)} disabled={saving === order.id}>{purchaseOrderStatuses.map((status) => <option key={status} value={status}>{labelFromEnum(status)}</option>)}</select> : '-'}</td></tr>)}</tbody></table></div>
           {purchaseOrders.length === 0 && <div className="emptyState"><h3>No purchase orders yet</h3><p className="muted">Create purchase orders to track stock you are buying from suppliers.</p></div>}
         </section>
 
         <section className="recordsGrid">
-          <article className="panel">
+          {canManageBusiness && <article className="panel">
             <div className="panelHeading"><div><p className="eyebrow">Quotes</p><h2>Create estimate</h2></div><span className="badge">{openQuotes.length} open</span></div>
             <form className="companyForm" onSubmit={createQuote}>
               <label>Customer<select required value={quoteForm.customerId} onChange={(event) => setQuoteForm((current) => ({ ...current, customerId: event.target.value }))}><option value="">Choose customer</option>{customers.map((customer) => <option key={customer.id} value={customer.id}>{customer.name}</option>)}</select></label>
@@ -1359,10 +1379,10 @@ export default function DashboardPage() {
               <label className="wideField">Notes<textarea value={quoteForm.notes} onChange={(event) => setQuoteForm((current) => ({ ...current, notes: event.target.value }))} /></label>
               <button className="button" disabled={saving === 'quote' || customers.length === 0}>{saving === 'quote' ? 'Creating...' : 'Create quote'}</button>
             </form>
-          </article>
+          </article>}
           <article className="panel widePanel">
             <div className="panelHeading"><div><p className="eyebrow">Estimates</p><h2>Quote pipeline</h2></div><span className="badge">{quotes.length} total</span></div>
-            <div className="tableWrap"><table className="dataTable"><thead><tr><th>Quote</th><th>Customer</th><th>Total</th><th>Status</th><th>Valid until</th><th>Action</th></tr></thead><tbody>{quotes.map((quote) => <tr key={quote.id}><td><b>{quote.quoteNo}</b></td><td>{quote.customer.name}</td><td>{currency(quote.total)}</td><td><span className={`statusPill ${quote.status.toLowerCase()}`}>{labelFromEnum(quote.status)}</span></td><td>{quote.validUntil ? new Date(quote.validUntil).toLocaleDateString() : '-'}</td><td className="rowActions"><button className="ghostButton" onClick={() => queueQuoteEmail(quote)} disabled={saving === `quote-email-${quote.id}`}>{saving === `quote-email-${quote.id}` ? 'Email...' : 'Email'}</button><select value={quote.status} onChange={(event) => updateQuoteStatus(quote.id, event.target.value as QuoteStatus)} disabled={saving === quote.id}>{quoteStatuses.map((status) => <option key={status} value={status}>{labelFromEnum(status)}</option>)}</select></td></tr>)}</tbody></table></div>
+            <div className="tableWrap"><table className="dataTable"><thead><tr><th>Quote</th><th>Customer</th><th>Total</th><th>Status</th><th>Valid until</th><th>Action</th></tr></thead><tbody>{quotes.map((quote) => <tr key={quote.id}><td><b>{quote.quoteNo}</b></td><td>{quote.customer.name}</td><td>{currency(quote.total)}</td><td><span className={`statusPill ${quote.status.toLowerCase()}`}>{labelFromEnum(quote.status)}</span></td><td>{quote.validUntil ? new Date(quote.validUntil).toLocaleDateString() : '-'}</td><td className="rowActions">{canManageBusiness ? <><button className="ghostButton" onClick={() => queueQuoteEmail(quote)} disabled={saving === `quote-email-${quote.id}`}>{saving === `quote-email-${quote.id}` ? 'Email...' : 'Email'}</button><select value={quote.status} onChange={(event) => updateQuoteStatus(quote.id, event.target.value as QuoteStatus)} disabled={saving === quote.id}>{quoteStatuses.map((status) => <option key={status} value={status}>{labelFromEnum(status)}</option>)}</select></> : '-'}</td></tr>)}</tbody></table></div>
             {quotes.length === 0 && <div className="emptyState"><h3>No quotes yet</h3><p className="muted">Create estimates before sending invoices for approved work.</p></div>}
           </article>
         </section>
@@ -1370,9 +1390,9 @@ export default function DashboardPage() {
         <section className="recordsGrid">
           <article className="panel widePanel">
             <div className="panelHeading"><div><p className="eyebrow">Invoices</p><h2>Billing pipeline</h2></div><span className="badge">{currency(summary?.metrics.outstanding)} open</span></div>
-            <div className="tableWrap"><table className="dataTable"><thead><tr><th>Invoice</th><th>Customer</th><th>Total</th><th>Paid</th><th>Balance</th><th>Status</th><th>Actions</th></tr></thead><tbody>{invoices.map((invoice) => <tr key={invoice.id}><td><b>{invoice.invoiceNo}</b><small>{invoice.dueDate ? `Due ${new Date(invoice.dueDate).toLocaleDateString()}` : 'No due date'}</small></td><td>{invoice.customer.name}</td><td>{currency(invoice.total)}</td><td>{currency(invoice.paid)}</td><td>{currency(invoice.balance)}</td><td><span className={`statusPill ${invoice.status.toLowerCase()}`}>{invoice.status.toLowerCase()}</span></td><td className="rowActions"><button className="ghostButton" onClick={() => downloadInvoicePdf(invoice)} disabled={saving === `pdf-${invoice.id}`}>{saving === `pdf-${invoice.id}` ? 'PDF...' : 'PDF'}</button><button className="ghostButton" onClick={() => queueInvoiceEmail(invoice)} disabled={saving === `invoice-email-${invoice.id}`}>{saving === `invoice-email-${invoice.id}` ? 'Email...' : 'Email'}</button>{invoice.status === 'DRAFT' && <button className="ghostButton" onClick={() => updateInvoiceStatus(invoice.id, 'SENT')}>Send</button>}{invoice.status !== 'VOID' && invoice.status !== 'PAID' && <button className="ghostButton" onClick={() => updateInvoiceStatus(invoice.id, 'VOID')}>Void</button>}</td></tr>)}</tbody></table></div>
+            <div className="tableWrap"><table className="dataTable"><thead><tr><th>Invoice</th><th>Customer</th><th>Total</th><th>Paid</th><th>Balance</th><th>Status</th><th>Actions</th></tr></thead><tbody>{invoices.map((invoice) => <tr key={invoice.id}><td><b>{invoice.invoiceNo}</b><small>{invoice.dueDate ? `Due ${new Date(invoice.dueDate).toLocaleDateString()}` : 'No due date'}</small></td><td>{invoice.customer.name}</td><td>{currency(invoice.total)}</td><td>{currency(invoice.paid)}</td><td>{currency(invoice.balance)}</td><td><span className={`statusPill ${invoice.status.toLowerCase()}`}>{invoice.status.toLowerCase()}</span></td><td className="rowActions"><button className="ghostButton" onClick={() => downloadInvoicePdf(invoice)} disabled={saving === `pdf-${invoice.id}`}>{saving === `pdf-${invoice.id}` ? 'PDF...' : 'PDF'}</button>{canManageBusiness && <><button className="ghostButton" onClick={() => queueInvoiceEmail(invoice)} disabled={saving === `invoice-email-${invoice.id}`}>{saving === `invoice-email-${invoice.id}` ? 'Email...' : 'Email'}</button>{invoice.status === 'DRAFT' && <button className="ghostButton" onClick={() => updateInvoiceStatus(invoice.id, 'SENT')}>Send</button>}{invoice.status !== 'VOID' && invoice.status !== 'PAID' && <button className="ghostButton" onClick={() => updateInvoiceStatus(invoice.id, 'VOID')}>Void</button>}</>}</td></tr>)}</tbody></table></div>
           </article>
-          <article className="panel">
+          {canManageBusiness && <article className="panel">
             <div className="panelHeading"><div><p className="eyebrow">Payments</p><h2>Record payment</h2></div><span className="badge">{openInvoices.length} open</span></div>
             <form className="companyForm" onSubmit={recordPayment}>
               <label>Invoice<select required value={paymentForm.invoiceId} onChange={(event) => setPaymentForm((current) => ({ ...current, invoiceId: event.target.value }))}><option value="">Choose invoice</option>{openInvoices.map((invoice) => <option key={invoice.id} value={invoice.id}>{invoice.invoiceNo} - {currency(invoice.balance)}</option>)}</select></label>
@@ -1381,11 +1401,11 @@ export default function DashboardPage() {
               <label>Reference<input value={paymentForm.reference} onChange={(event) => setPaymentForm((current) => ({ ...current, reference: event.target.value }))} /></label>
               <button className="button" disabled={saving === 'payment' || openInvoices.length === 0}>{saving === 'payment' ? 'Recording...' : 'Record payment'}</button>
             </form>
-          </article>
+          </article>}
         </section>
 
         <section className="recordsGrid">
-          <article className="panel">
+          {canManageBusiness && <article className="panel">
             <div className="panelHeading"><div><p className="eyebrow">Expenses</p><h2>Record expense</h2></div><span className="badge">{currency(summary?.metrics.expenses)} spent</span></div>
             <form className="companyForm" onSubmit={saveExpense}>
               <label>Vendor<input required minLength={2} value={expenseForm.vendor} onChange={(event) => setExpenseForm((current) => ({ ...current, vendor: event.target.value }))} placeholder="Adobe, rent, contractor..." /></label>
@@ -1396,7 +1416,7 @@ export default function DashboardPage() {
               <label className="wideField">Receipt link<input value={expenseForm.receiptUrl} onChange={(event) => setExpenseForm((current) => ({ ...current, receiptUrl: event.target.value }))} placeholder="Optional URL" /></label>
               <button className="button" disabled={saving === 'expense'}>{saving === 'expense' ? 'Recording...' : 'Record expense'}</button>
             </form>
-          </article>
+          </article>}
 
           <article className="panel">
             <div className="panelHeading"><div><p className="eyebrow">Expense records</p><h2>Spending log</h2></div><span className="badge">{expenses.length} records</span></div>
@@ -1432,13 +1452,13 @@ export default function DashboardPage() {
               <small>{reports?.deals.map((item) => `${item.stage.toLowerCase().replace('_', ' ')}: ${item.count}`).join(' · ') || 'No deals yet'}</small>
             </article>
           </div>
-          <div className="exportActions">
+          {canManageBusiness && <div className="exportActions">
             {['profit-loss', 'customers', 'invoices', 'expenses'].map((type) => (
               <button className="ghostButton" key={type} onClick={() => downloadReport(type)} disabled={saving === `report-${type}`}>
                 {saving === `report-${type}` ? 'Downloading...' : `Download ${type.replace('-', ' ')} CSV`}
               </button>
             ))}
-          </div>
+          </div>}
         </section>
       </section>
     </main>
