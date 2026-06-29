@@ -6,6 +6,7 @@ import { CompaniesModule } from './companies/companies.module';
 import { CustomersModule } from './customers/customers.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { DealsModule } from './deals/deals.module';
+import { EmailModule } from './email/email.module';
 import { EmployeesModule } from './employees/employees.module';
 import { ExpensesModule } from './expenses/expenses.module';
 import { InvoicesModule } from './invoices/invoices.module';
@@ -28,6 +29,7 @@ import { PrismaModule } from './prisma/prisma.module';
     EmployeesModule,
     CustomersModule,
     DealsModule,
+    EmailModule,
     ExpensesModule,
     ProductsModule,
     ProjectsModule,

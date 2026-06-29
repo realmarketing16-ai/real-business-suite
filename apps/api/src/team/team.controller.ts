@@ -3,6 +3,7 @@ import { Role } from '@prisma/client';
 import { hash } from 'bcryptjs';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { AuthenticatedUser, JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { EmailService } from '../email/email.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateTeamMemberDto, UpdateTeamMemberDto } from './team.dto';
 
@@ -14,7 +15,7 @@ function serializeUser(user: any) {
 @UseGuards(JwtAuthGuard)
 @Controller('team')
 export class TeamController {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService, private readonly email: EmailService) {}
 
   @Get()
   async list(@CurrentUser() user: AuthenticatedUser) {
@@ -53,6 +54,14 @@ export class TeamController {
         actorId: user.sub,
         companyId: user.companyId,
       },
+    });
+    await this.email.queue({
+      companyId: user.companyId,
+      to: member.email,
+      subject: `You're invited to Real Business Suite`,
+      body: `Hello ${member.firstName},\n\n${user.email} added you to Real Business Suite as ${member.role.toLowerCase()}.\n\nFor security, your temporary password is not included in this email. Please contact your company admin for secure access instructions.`,
+      relatedType: 'team_member',
+      relatedId: member.id,
     });
     return serializeUser(member);
   }

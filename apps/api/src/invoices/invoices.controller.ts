@@ -2,6 +2,7 @@ import { BadRequestException, Body, Controller, Get, NotFoundException, Param, P
 import { InvoiceStatus, Prisma } from '@prisma/client';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { AuthenticatedUser, JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { EmailService } from '../email/email.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateInvoiceDto, RecordPaymentDto, UpdateInvoiceStatusDto } from './invoices.dto';
 
@@ -115,7 +116,7 @@ function buildInvoicePdf(invoice: any) {
 @UseGuards(JwtAuthGuard)
 @Controller('invoices')
 export class InvoicesController {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService, private readonly email: EmailService) {}
 
   @Get()
   async list(@CurrentUser() user: AuthenticatedUser) {
@@ -185,6 +186,36 @@ export class InvoicesController {
     response.setHeader('Content-Disposition', `attachment; filename="${invoice.invoiceNo}.pdf"`);
     response.setHeader('Content-Length', pdf.length);
     response.end(pdf);
+  }
+
+  @Post(':id/email')
+  async emailInvoice(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+    const invoice = await this.prisma.invoice.findFirst({
+      where: { id, companyId: user.companyId },
+      include: { company: true, customer: true },
+    });
+    if (!invoice) throw new NotFoundException('Invoice not found');
+    if (!invoice.customer.email) throw new BadRequestException('Customer email is required before sending invoice email');
+    const message = await this.email.queue({
+      companyId: user.companyId,
+      to: invoice.customer.email,
+      subject: `${invoice.company.name} invoice ${invoice.invoiceNo}`,
+      body: `Hello ${invoice.customer.name},\n\n${invoice.company.name} has prepared invoice ${invoice.invoiceNo} for ${currency(invoice.total)}.\n\nStatus: ${invoice.status.toLowerCase()}\nDue date: ${formatDate(invoice.dueDate)}\n\nPlease contact us if you have any questions.`,
+      relatedType: 'invoice',
+      relatedId: invoice.id,
+    });
+    await this.prisma.auditLog.create({
+      data: {
+        action: 'queued_email',
+        entityType: 'invoice',
+        entityId: invoice.id,
+        description: `Queued invoice email ${invoice.invoiceNo}`,
+        metadata: { to: invoice.customer.email, emailMessageId: message.id },
+        actorId: user.sub,
+        companyId: user.companyId,
+      },
+    });
+    return message;
   }
 
   @Patch(':id/status')

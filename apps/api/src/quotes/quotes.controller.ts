@@ -2,6 +2,7 @@ import { BadRequestException, Body, Controller, Get, NotFoundException, Param, P
 import { Prisma } from '@prisma/client';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { AuthenticatedUser, JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { EmailService } from '../email/email.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateQuoteDto, UpdateQuoteStatusDto } from './quotes.dto';
 
@@ -24,10 +25,19 @@ function serializeQuote(quote: any) {
   };
 }
 
+function currency(value: Prisma.Decimal | number | string | null | undefined) {
+  return `$${money(value).toFixed(2)}`;
+}
+
+function formatDate(value: unknown) {
+  if (!value) return '-';
+  return new Date(value as string | Date).toLocaleDateString('en-US');
+}
+
 @UseGuards(JwtAuthGuard)
 @Controller('quotes')
 export class QuotesController {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService, private readonly email: EmailService) {}
 
   @Get()
   async list(@CurrentUser() user: AuthenticatedUser) {
@@ -90,6 +100,36 @@ export class QuotesController {
       include: { customer: true, items: true },
     });
     return serializeQuote(quote);
+  }
+
+  @Post(':id/email')
+  async emailQuote(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+    const quote = await this.prisma.quote.findFirst({
+      where: { id, companyId: user.companyId },
+      include: { company: true, customer: true },
+    });
+    if (!quote) throw new NotFoundException('Quote not found');
+    if (!quote.customer.email) throw new BadRequestException('Customer email is required before sending quote email');
+    const message = await this.email.queue({
+      companyId: user.companyId,
+      to: quote.customer.email,
+      subject: `${quote.company.name} quote ${quote.quoteNo}`,
+      body: `Hello ${quote.customer.name},\n\n${quote.company.name} has prepared quote ${quote.quoteNo} for ${currency(quote.total)}.\n\nStatus: ${quote.status.toLowerCase()}\nValid until: ${formatDate(quote.validUntil)}\n\nReply to this email if you would like to approve or discuss the quote.`,
+      relatedType: 'quote',
+      relatedId: quote.id,
+    });
+    await this.prisma.auditLog.create({
+      data: {
+        action: 'queued_email',
+        entityType: 'quote',
+        entityId: quote.id,
+        description: `Queued quote email ${quote.quoteNo}`,
+        metadata: { to: quote.customer.email, emailMessageId: message.id },
+        actorId: user.sub,
+        companyId: user.companyId,
+      },
+    });
+    return message;
   }
 
   private async ensureQuote(companyId: string, id: string) {

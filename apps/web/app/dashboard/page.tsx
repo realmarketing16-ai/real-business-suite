@@ -116,6 +116,8 @@ type Role = 'OWNER' | 'ADMIN' | 'MANAGER' | 'EMPLOYEE';
 type TeamMember = { id: string; email: string; firstName: string; lastName: string; role: Role; createdAt: string };
 type TeamMemberForm = { firstName: string; lastName: string; email: string; password: string; role: Role };
 type AuditLog = { id: string; action: string; entityType: string; entityId?: string | null; description: string; actorName: string; createdAt: string };
+type EmailStatus = 'QUEUED' | 'SENT' | 'FAILED';
+type EmailMessage = { id: string; to: string; subject: string; bodyPreview: string; status: EmailStatus; relatedType?: string | null; createdAt: string };
 
 const emptyCompanyForm: CompanyForm = { name: '', industry: '', email: '', phone: '', address: '' };
 const emptyEmployeeForm: EmployeeForm = { employeeNo: '', firstName: '', lastName: '', email: '', phone: '', jobTitle: '', department: '', status: 'ACTIVE' };
@@ -192,6 +194,7 @@ export default function DashboardPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+  const [emailMessages, setEmailMessages] = useState<EmailMessage[]>([]);
   const [reports, setReports] = useState<ReportSummary | null>(null);
   const [employeeForm, setEmployeeForm] = useState<EmployeeForm>(emptyEmployeeForm);
   const [customerForm, setCustomerForm] = useState<CustomerForm>(emptyCustomerForm);
@@ -231,7 +234,7 @@ export default function DashboardPage() {
 
   async function loadDashboard() {
     setError('');
-    const [nextSummary, nextCompany, nextEmployees, nextCustomers, nextDeals, nextProducts, nextPurchasing, nextQuotes, nextInvoices, nextExpenses, nextProjects, nextTeamMembers, nextAuditLogs, nextReports] = await Promise.all([
+    const [nextSummary, nextCompany, nextEmployees, nextCustomers, nextDeals, nextProducts, nextPurchasing, nextQuotes, nextInvoices, nextExpenses, nextProjects, nextTeamMembers, nextAuditLogs, nextEmailMessages, nextReports] = await Promise.all([
       api<Summary>('/dashboard/summary'),
       api<Company>('/company'),
       api<Employee[]>('/employees'),
@@ -245,6 +248,7 @@ export default function DashboardPage() {
       api<Project[]>('/projects'),
       api<TeamMember[]>('/team'),
       api<AuditLog[]>('/audit-logs').catch(() => []),
+      api<EmailMessage[]>('/email/outbox').catch(() => []),
       api<ReportSummary>('/reports/summary'),
     ]);
     setSummary(nextSummary);
@@ -263,6 +267,7 @@ export default function DashboardPage() {
     setProjects(nextProjects);
     setTeamMembers(nextTeamMembers);
     setAuditLogs(nextAuditLogs);
+    setEmailMessages(nextEmailMessages);
     setReports(nextReports);
     setInvoiceForm((current) => ({
       ...current,
@@ -645,6 +650,21 @@ export default function DashboardPage() {
     }
   }
 
+  async function queueQuoteEmail(quote: Quote) {
+    setSaving(`quote-email-${quote.id}`);
+    setError('');
+    setNotice('');
+    try {
+      await api<EmailMessage>(`/quotes/${quote.id}/email`, { method: 'POST' });
+      setNotice(`${quote.quoteNo} email was queued for ${quote.customer.name}.`);
+      await loadDashboard();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to queue quote email');
+    } finally {
+      setSaving('');
+    }
+  }
+
   async function createInvoice(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSaving('invoice');
@@ -711,6 +731,21 @@ export default function DashboardPage() {
       setNotice(`${invoice.invoiceNo} PDF downloaded.`);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Unable to download invoice PDF');
+    } finally {
+      setSaving('');
+    }
+  }
+
+  async function queueInvoiceEmail(invoice: Invoice) {
+    setSaving(`invoice-email-${invoice.id}`);
+    setError('');
+    setNotice('');
+    try {
+      await api<EmailMessage>(`/invoices/${invoice.id}/email`, { method: 'POST' });
+      setNotice(`${invoice.invoiceNo} email was queued for ${invoice.customer.name}.`);
+      await loadDashboard();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to queue invoice email');
     } finally {
       setSaving('');
     }
@@ -987,6 +1022,12 @@ export default function DashboardPage() {
           <div className="panelHeading"><div><p className="eyebrow">Audit trail</p><h2>Recent company activity</h2></div><span className="badge">{auditLogs.length} events</span></div>
           <div className="tableWrap"><table className="dataTable"><thead><tr><th>Action</th><th>Record</th><th>Actor</th><th>When</th></tr></thead><tbody>{auditLogs.map((log) => <tr key={log.id}><td><b>{log.description}</b><small>{labelFromEnum(log.action)}</small></td><td>{labelFromEnum(log.entityType)}</td><td>{log.actorName}</td><td>{new Date(log.createdAt).toLocaleString()}</td></tr>)}</tbody></table></div>
           {auditLogs.length === 0 && <div className="emptyState"><h3>No audit events yet</h3><p className="muted">Owners and admins will see company changes here as the team works.</p></div>}
+        </section>
+
+        <section className="panel">
+          <div className="panelHeading"><div><p className="eyebrow">Email outbox</p><h2>Queued business emails</h2></div><span className="badge">{emailMessages.length} messages</span></div>
+          <div className="tableWrap"><table className="dataTable"><thead><tr><th>Email</th><th>Related</th><th>Status</th><th>Queued</th></tr></thead><tbody>{emailMessages.map((message) => <tr key={message.id}><td><b>{message.subject}</b><small>To {message.to} Â· {message.bodyPreview}</small></td><td>{message.relatedType ? labelFromEnum(message.relatedType) : '-'}</td><td><span className={`statusPill ${message.status.toLowerCase()}`}>{labelFromEnum(message.status)}</span></td><td>{new Date(message.createdAt).toLocaleString()}</td></tr>)}</tbody></table></div>
+          {emailMessages.length === 0 && <div className="emptyState"><h3>No emails queued yet</h3><p className="muted">Invoice, quote, and team invite messages will appear here before SMTP delivery is connected.</p></div>}
         </section>
 
         <section className="operationsGrid">
@@ -1271,7 +1312,7 @@ export default function DashboardPage() {
           </article>
           <article className="panel widePanel">
             <div className="panelHeading"><div><p className="eyebrow">Estimates</p><h2>Quote pipeline</h2></div><span className="badge">{quotes.length} total</span></div>
-            <div className="tableWrap"><table className="dataTable"><thead><tr><th>Quote</th><th>Customer</th><th>Total</th><th>Status</th><th>Valid until</th><th>Action</th></tr></thead><tbody>{quotes.map((quote) => <tr key={quote.id}><td><b>{quote.quoteNo}</b></td><td>{quote.customer.name}</td><td>{currency(quote.total)}</td><td><span className={`statusPill ${quote.status.toLowerCase()}`}>{labelFromEnum(quote.status)}</span></td><td>{quote.validUntil ? new Date(quote.validUntil).toLocaleDateString() : '-'}</td><td><select value={quote.status} onChange={(event) => updateQuoteStatus(quote.id, event.target.value as QuoteStatus)} disabled={saving === quote.id}>{quoteStatuses.map((status) => <option key={status} value={status}>{labelFromEnum(status)}</option>)}</select></td></tr>)}</tbody></table></div>
+            <div className="tableWrap"><table className="dataTable"><thead><tr><th>Quote</th><th>Customer</th><th>Total</th><th>Status</th><th>Valid until</th><th>Action</th></tr></thead><tbody>{quotes.map((quote) => <tr key={quote.id}><td><b>{quote.quoteNo}</b></td><td>{quote.customer.name}</td><td>{currency(quote.total)}</td><td><span className={`statusPill ${quote.status.toLowerCase()}`}>{labelFromEnum(quote.status)}</span></td><td>{quote.validUntil ? new Date(quote.validUntil).toLocaleDateString() : '-'}</td><td className="rowActions"><button className="ghostButton" onClick={() => queueQuoteEmail(quote)} disabled={saving === `quote-email-${quote.id}`}>{saving === `quote-email-${quote.id}` ? 'Email...' : 'Email'}</button><select value={quote.status} onChange={(event) => updateQuoteStatus(quote.id, event.target.value as QuoteStatus)} disabled={saving === quote.id}>{quoteStatuses.map((status) => <option key={status} value={status}>{labelFromEnum(status)}</option>)}</select></td></tr>)}</tbody></table></div>
             {quotes.length === 0 && <div className="emptyState"><h3>No quotes yet</h3><p className="muted">Create estimates before sending invoices for approved work.</p></div>}
           </article>
         </section>
@@ -1279,7 +1320,7 @@ export default function DashboardPage() {
         <section className="recordsGrid">
           <article className="panel widePanel">
             <div className="panelHeading"><div><p className="eyebrow">Invoices</p><h2>Billing pipeline</h2></div><span className="badge">{currency(summary?.metrics.outstanding)} open</span></div>
-            <div className="tableWrap"><table className="dataTable"><thead><tr><th>Invoice</th><th>Customer</th><th>Total</th><th>Paid</th><th>Balance</th><th>Status</th><th>Actions</th></tr></thead><tbody>{invoices.map((invoice) => <tr key={invoice.id}><td><b>{invoice.invoiceNo}</b><small>{invoice.dueDate ? `Due ${new Date(invoice.dueDate).toLocaleDateString()}` : 'No due date'}</small></td><td>{invoice.customer.name}</td><td>{currency(invoice.total)}</td><td>{currency(invoice.paid)}</td><td>{currency(invoice.balance)}</td><td><span className={`statusPill ${invoice.status.toLowerCase()}`}>{invoice.status.toLowerCase()}</span></td><td className="rowActions"><button className="ghostButton" onClick={() => downloadInvoicePdf(invoice)} disabled={saving === `pdf-${invoice.id}`}>{saving === `pdf-${invoice.id}` ? 'PDF...' : 'PDF'}</button>{invoice.status === 'DRAFT' && <button className="ghostButton" onClick={() => updateInvoiceStatus(invoice.id, 'SENT')}>Send</button>}{invoice.status !== 'VOID' && invoice.status !== 'PAID' && <button className="ghostButton" onClick={() => updateInvoiceStatus(invoice.id, 'VOID')}>Void</button>}</td></tr>)}</tbody></table></div>
+            <div className="tableWrap"><table className="dataTable"><thead><tr><th>Invoice</th><th>Customer</th><th>Total</th><th>Paid</th><th>Balance</th><th>Status</th><th>Actions</th></tr></thead><tbody>{invoices.map((invoice) => <tr key={invoice.id}><td><b>{invoice.invoiceNo}</b><small>{invoice.dueDate ? `Due ${new Date(invoice.dueDate).toLocaleDateString()}` : 'No due date'}</small></td><td>{invoice.customer.name}</td><td>{currency(invoice.total)}</td><td>{currency(invoice.paid)}</td><td>{currency(invoice.balance)}</td><td><span className={`statusPill ${invoice.status.toLowerCase()}`}>{invoice.status.toLowerCase()}</span></td><td className="rowActions"><button className="ghostButton" onClick={() => downloadInvoicePdf(invoice)} disabled={saving === `pdf-${invoice.id}`}>{saving === `pdf-${invoice.id}` ? 'PDF...' : 'PDF'}</button><button className="ghostButton" onClick={() => queueInvoiceEmail(invoice)} disabled={saving === `invoice-email-${invoice.id}`}>{saving === `invoice-email-${invoice.id}` ? 'Email...' : 'Email'}</button>{invoice.status === 'DRAFT' && <button className="ghostButton" onClick={() => updateInvoiceStatus(invoice.id, 'SENT')}>Send</button>}{invoice.status !== 'VOID' && invoice.status !== 'PAID' && <button className="ghostButton" onClick={() => updateInvoiceStatus(invoice.id, 'VOID')}>Void</button>}</td></tr>)}</tbody></table></div>
           </article>
           <article className="panel">
             <div className="panelHeading"><div><p className="eyebrow">Payments</p><h2>Record payment</h2></div><span className="badge">{openInvoices.length} open</span></div>
