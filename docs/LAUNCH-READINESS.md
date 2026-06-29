@@ -5,6 +5,7 @@ Use this checklist before letting real customers rely on Real Business Suite.
 ## Product readiness
 
 - [ ] Company registration/login tested.
+- [ ] Password reset request and reset-token flow tested.
 - [ ] Company profile can be edited.
 - [ ] Team roles tested for owner/admin/manager/employee.
 - [ ] Employee management tested.
