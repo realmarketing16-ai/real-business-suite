@@ -15,6 +15,12 @@ type Summary = {
     departments: number;
     customers: number;
     activeCustomers: number;
+    deals: number;
+    openDeals: number;
+    wonDeals: number;
+    pipelineValue: number;
+    wonDealValue: number;
+    conversionRate: number;
     products: number;
     invoices: number;
     openInvoices: number;
@@ -32,6 +38,10 @@ type EmployeeForm = { employeeNo: string; firstName: string; lastName: string; e
 type CustomerStatus = 'LEAD' | 'ACTIVE' | 'INACTIVE';
 type Customer = { id: string; name: string; email?: string | null; phone?: string | null; companyName?: string | null; status: CustomerStatus; notes?: string | null };
 type CustomerForm = { name: string; email: string; phone: string; companyName: string; status: CustomerStatus; notes: string };
+
+type DealStage = 'NEW_LEAD' | 'CONTACTED' | 'PROPOSAL_SENT' | 'WON' | 'LOST';
+type Deal = { id: string; title: string; stage: DealStage; value: number; expectedCloseDate?: string | null; notes?: string | null; customer: Customer };
+type DealForm = { title: string; customerId: string; stage: DealStage; value: string; expectedCloseDate: string; notes: string };
 
 type ProductType = 'PRODUCT' | 'SERVICE';
 type Product = { id: string; name: string; description?: string | null; type: ProductType; unitPrice: number; active: boolean };
@@ -54,6 +64,7 @@ type PaymentForm = { invoiceId: string; amount: string; method: string; referenc
 const emptyCompanyForm: CompanyForm = { name: '', industry: '', email: '', phone: '', address: '' };
 const emptyEmployeeForm: EmployeeForm = { employeeNo: '', firstName: '', lastName: '', email: '', phone: '', jobTitle: '', department: '', status: 'ACTIVE' };
 const emptyCustomerForm: CustomerForm = { name: '', email: '', phone: '', companyName: '', status: 'LEAD', notes: '' };
+const emptyDealForm: DealForm = { title: '', customerId: '', stage: 'NEW_LEAD', value: '', expectedCloseDate: '', notes: '' };
 const emptyProductForm: ProductForm = { name: '', description: '', type: 'SERVICE', unitPrice: '' };
 const emptyInvoiceForm: InvoiceForm = { customerId: '', dueDate: '', productId: '', description: '', quantity: '1', unitPrice: '', tax: '0', notes: '' };
 const emptyPaymentForm: PaymentForm = { invoiceId: '', amount: '', method: 'Bank transfer', reference: '' };
@@ -87,6 +98,10 @@ function initials(firstName?: string, lastName?: string) {
   return `${firstName?.[0] ?? ''}${lastName?.[0] ?? ''}`.toUpperCase() || 'RB';
 }
 
+function dealStageLabel(stage: DealStage) {
+  return stage.replace('_', ' ').replace('_', ' ').toLowerCase();
+}
+
 export default function DashboardPage() {
   const router = useRouter();
   const [summary, setSummary] = useState<Summary | null>(null);
@@ -94,10 +109,12 @@ export default function DashboardPage() {
   const [companyForm, setCompanyForm] = useState<CompanyForm>(emptyCompanyForm);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [deals, setDeals] = useState<Deal[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [employeeForm, setEmployeeForm] = useState<EmployeeForm>(emptyEmployeeForm);
   const [customerForm, setCustomerForm] = useState<CustomerForm>(emptyCustomerForm);
+  const [dealForm, setDealForm] = useState<DealForm>(emptyDealForm);
   const [productForm, setProductForm] = useState<ProductForm>(emptyProductForm);
   const [invoiceForm, setInvoiceForm] = useState<InvoiceForm>(emptyInvoiceForm);
   const [paymentForm, setPaymentForm] = useState<PaymentForm>(emptyPaymentForm);
@@ -110,15 +127,17 @@ export default function DashboardPage() {
   const activeEmployee = useMemo(() => employees.find((employee) => employee.id === editingEmployeeId), [editingEmployeeId, employees]);
   const activeProducts = products.filter((product) => product.active);
   const openInvoices = invoices.filter((invoice) => invoice.status !== 'PAID' && invoice.status !== 'VOID');
+  const pipelineStages: DealStage[] = ['NEW_LEAD', 'CONTACTED', 'PROPOSAL_SENT', 'WON', 'LOST'];
   const companyName = company?.name ?? summary?.company.name ?? 'your company';
 
   async function loadDashboard() {
     setError('');
-    const [nextSummary, nextCompany, nextEmployees, nextCustomers, nextProducts, nextInvoices] = await Promise.all([
+    const [nextSummary, nextCompany, nextEmployees, nextCustomers, nextDeals, nextProducts, nextInvoices] = await Promise.all([
       api<Summary>('/dashboard/summary'),
       api<Company>('/company'),
       api<Employee[]>('/employees'),
       api<Customer[]>('/customers'),
+      api<Deal[]>('/deals'),
       api<Product[]>('/products'),
       api<Invoice[]>('/invoices'),
     ]);
@@ -127,6 +146,7 @@ export default function DashboardPage() {
     setCompanyForm(toCompanyForm(nextCompany));
     setEmployees(nextEmployees);
     setCustomers(nextCustomers);
+    setDeals(nextDeals);
     setProducts(nextProducts);
     setInvoices(nextInvoices);
     setInvoiceForm((current) => ({
@@ -134,6 +154,7 @@ export default function DashboardPage() {
       customerId: current.customerId || nextCustomers[0]?.id || '',
       productId: current.productId || nextProducts.find((product) => product.active)?.id || '',
     }));
+    setDealForm((current) => ({ ...current, customerId: current.customerId || nextCustomers[0]?.id || '' }));
     setPaymentForm((current) => ({ ...current, invoiceId: current.invoiceId || nextInvoices.find((invoice) => invoice.balance > 0)?.id || '' }));
   }
 
@@ -251,6 +272,48 @@ export default function DashboardPage() {
     }
   }
 
+  async function saveDeal(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSaving('deal');
+    setError('');
+    setNotice('');
+    try {
+      await api<Deal>('/deals', {
+        method: 'POST',
+        body: JSON.stringify({
+          title: dealForm.title.trim(),
+          customerId: dealForm.customerId,
+          stage: dealForm.stage,
+          value: Number(dealForm.value),
+          expectedCloseDate: cleanText(dealForm.expectedCloseDate),
+          notes: cleanText(dealForm.notes),
+        }),
+      });
+      setNotice(`${dealForm.title.trim()} was added to the sales pipeline.`);
+      setDealForm({ ...emptyDealForm, customerId: customers[0]?.id ?? '' });
+      await loadDashboard();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to save deal');
+    } finally {
+      setSaving('');
+    }
+  }
+
+  async function updateDealStage(dealId: string, stage: DealStage) {
+    setSaving(dealId);
+    setError('');
+    setNotice('');
+    try {
+      await api<Deal>(`/deals/${dealId}`, { method: 'PATCH', body: JSON.stringify({ stage }) });
+      setNotice(`Deal moved to ${dealStageLabel(stage)}.`);
+      await loadDashboard();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to update deal');
+    } finally {
+      setSaving('');
+    }
+  }
+
   async function saveProduct(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSaving('product');
@@ -357,7 +420,7 @@ export default function DashboardPage() {
       <aside className="sidebar">
         <div className="brand light"><span>R</span> RBS</div>
         <nav>
-          {['Overview', 'Company', 'Employees', 'Customers', 'Products', 'Invoices', 'Payments'].map((item) => <a className="active" key={item}>{item}</a>)}
+          {['Overview', 'Company', 'Employees', 'Customers', 'Sales', 'Products', 'Invoices', 'Payments'].map((item) => <a className="active" key={item}>{item}</a>)}
         </nav>
         <button className="signOut" onClick={signOut}>Sign out</button>
       </aside>
@@ -377,6 +440,8 @@ export default function DashboardPage() {
         <div className="stats">
           <article><span>Revenue collected</span><b>{loading ? '-' : currency(summary?.metrics.revenue)}</b><small>Recorded payments</small></article>
           <article><span>Outstanding</span><b>{loading ? '-' : currency(summary?.metrics.outstanding)}</b><small>Invoice balances</small></article>
+          <article><span>Open pipeline</span><b>{loading ? '-' : currency(summary?.metrics.pipelineValue)}</b><small>{summary?.metrics.openDeals ?? 0} open deals</small></article>
+          <article><span>Won deals</span><b>{loading ? '-' : currency(summary?.metrics.wonDealValue)}</b><small>{summary?.metrics.conversionRate ?? 0}% conversion</small></article>
           <article><span>Customers</span><b>{summary?.metrics.customers ?? (loading ? '-' : 0)}</b><small>{summary?.metrics.activeCustomers ?? 0} active</small></article>
           <article><span>Open invoices</span><b>{summary?.metrics.openInvoices ?? (loading ? '-' : 0)}</b><small>{summary?.metrics.invoices ?? 0} total</small></article>
           <article><span>Total employees</span><b>{summary?.metrics.employees ?? (loading ? '-' : 0)}</b><small>{summary?.metrics.activeEmployees ?? 0} active</small></article>
@@ -429,6 +494,19 @@ export default function DashboardPage() {
               <label>Status<select value={customerForm.status} onChange={(event) => setCustomerForm((current) => ({ ...current, status: event.target.value as CustomerStatus }))}><option value="LEAD">Lead</option><option value="ACTIVE">Active</option><option value="INACTIVE">Inactive</option></select></label>
               <label className="wideField">Notes<textarea value={customerForm.notes} onChange={(event) => setCustomerForm((current) => ({ ...current, notes: event.target.value }))} /></label>
               <button className="button" disabled={saving === 'customer'}>{saving === 'customer' ? 'Saving...' : 'Add customer'}</button>
+            </form>
+          </article>
+
+          <article className="panel">
+            <div className="panelHeading"><div><p className="eyebrow">Sales pipeline</p><h2>Add deal</h2></div><span className="badge">{deals.length} deals</span></div>
+            <form className="companyForm" onSubmit={saveDeal}>
+              <label>Deal title<input required minLength={2} value={dealForm.title} onChange={(event) => setDealForm((current) => ({ ...current, title: event.target.value }))} /></label>
+              <label>Customer<select required value={dealForm.customerId} onChange={(event) => setDealForm((current) => ({ ...current, customerId: event.target.value }))}><option value="">Choose customer</option>{customers.map((customer) => <option key={customer.id} value={customer.id}>{customer.name}</option>)}</select></label>
+              <label>Stage<select value={dealForm.stage} onChange={(event) => setDealForm((current) => ({ ...current, stage: event.target.value as DealStage }))}>{pipelineStages.map((stage) => <option key={stage} value={stage}>{dealStageLabel(stage)}</option>)}</select></label>
+              <label>Value<input required type="number" min="0" step="0.01" value={dealForm.value} onChange={(event) => setDealForm((current) => ({ ...current, value: event.target.value }))} /></label>
+              <label>Expected close<input type="date" value={dealForm.expectedCloseDate} onChange={(event) => setDealForm((current) => ({ ...current, expectedCloseDate: event.target.value }))} /></label>
+              <label className="wideField">Notes<textarea value={dealForm.notes} onChange={(event) => setDealForm((current) => ({ ...current, notes: event.target.value }))} /></label>
+              <button className="button" disabled={saving === 'deal' || customers.length === 0}>{saving === 'deal' ? 'Saving...' : 'Add deal'}</button>
             </form>
           </article>
 
@@ -497,6 +575,40 @@ export default function DashboardPage() {
               {employees.length === 0 && <div className="emptyState"><h3>No employees yet</h3><p className="muted">Add your first employee to unlock HR metrics.</p></div>}
             </div>
           </article>
+        </section>
+
+        <section className="panel">
+          <div className="panelHeading">
+            <div><p className="eyebrow">Sales board</p><h2>Deal pipeline</h2></div>
+            <span className="badge">{currency(summary?.metrics.pipelineValue)} open pipeline</span>
+          </div>
+          <div className="pipelineBoard">
+            {pipelineStages.map((stage) => {
+              const stageDeals = deals.filter((deal) => deal.stage === stage);
+              return (
+                <div className="pipelineColumn" key={stage}>
+                  <div className="pipelineColumnHeader">
+                    <b>{dealStageLabel(stage)}</b>
+                    <span>{stageDeals.length}</span>
+                  </div>
+                  {stageDeals.length === 0 ? (
+                    <p className="muted">No deals</p>
+                  ) : stageDeals.map((deal) => (
+                    <article className="dealCard" key={deal.id}>
+                      <div>
+                        <b>{deal.title}</b>
+                        <small>{deal.customer.name}{deal.expectedCloseDate ? ` · closes ${new Date(deal.expectedCloseDate).toLocaleDateString()}` : ''}</small>
+                      </div>
+                      <strong>{currency(deal.value)}</strong>
+                      <select value={deal.stage} onChange={(event) => updateDealStage(deal.id, event.target.value as DealStage)} disabled={saving === deal.id}>
+                        {pipelineStages.map((nextStage) => <option key={nextStage} value={nextStage}>{dealStageLabel(nextStage)}</option>)}
+                      </select>
+                    </article>
+                  ))}
+                </div>
+              );
+            })}
+          </div>
         </section>
 
         <section className="recordsGrid">
