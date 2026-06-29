@@ -14,7 +14,7 @@ export class DashboardController {
     startOfMonth.setUTCDate(1);
     startOfMonth.setUTCHours(0, 0, 0, 0);
 
-    const [company, employeeCount, activeEmployees, departments, customerCount, activeCustomers, productCount, invoiceCount, openInvoices, invoiceTotals, paymentTotals, dealCount, openDeals, wonDeals, lostDeals, pipelineTotals, wonDealTotals, expenseCount, expenseTotals, monthlyExpenseTotals, projectCount, activeProjects, taskCount, openTasks, overdueTasks] = await Promise.all([
+    const [company, employeeCount, activeEmployees, departments, customerCount, activeCustomers, productCount, invoiceCount, openInvoices, invoiceTotals, paymentTotals, dealCount, openDeals, wonDeals, lostDeals, pipelineTotals, wonDealTotals, expenseCount, expenseTotals, monthlyExpenseTotals, projectCount, activeProjects, taskCount, openTasks, overdueTasks, teamCount, adminCount] = await Promise.all([
       this.prisma.company.findUniqueOrThrow({ where: { id: user.companyId } }),
       this.prisma.employee.count({ where: { companyId: user.companyId } }),
       this.prisma.employee.count({ where: { companyId: user.companyId, status: 'ACTIVE' } }),
@@ -62,6 +62,8 @@ export class DashboardController {
       this.prisma.task.count({ where: { companyId: user.companyId } }),
       this.prisma.task.count({ where: { companyId: user.companyId, status: { in: ['TODO', 'IN_PROGRESS', 'BLOCKED'] } } }),
       this.prisma.task.count({ where: { companyId: user.companyId, status: { not: 'DONE' }, dueDate: { lt: new Date() } } }),
+      this.prisma.user.count({ where: { companyId: user.companyId } }),
+      this.prisma.user.count({ where: { companyId: user.companyId, role: { in: ['OWNER', 'ADMIN'] } } }),
     ]);
 
     const invoiced = Number(invoiceTotals._sum.total ?? 0);
@@ -100,8 +102,10 @@ export class DashboardController {
         tasks: taskCount,
         openTasks,
         overdueTasks,
+        teamMembers: teamCount,
+        admins: adminCount,
         outstanding,
-        productsEnabled: 6,
+        productsEnabled: 7,
       },
       suggestions: [
         employeeCount === 0 ? 'Add your first employee' : 'Review your employee records',
@@ -111,6 +115,7 @@ export class DashboardController {
         productCount === 0 ? 'Create your first product or service' : 'Review pricing and service catalog',
         expenseCount === 0 ? 'Record business expenses to see net profit' : netProfit >= 0 ? 'Profit is positive after recorded expenses' : 'Review expenses against collected revenue',
         projectCount === 0 ? 'Create your first project and task list' : overdueTasks > 0 ? 'Review overdue tasks' : 'Keep project work moving',
+        teamCount === 1 ? 'Add your first team member' : 'Review team roles and access',
         openInvoices === 0 ? 'Create and send an invoice when ready' : 'Follow up on open invoices',
       ],
     };

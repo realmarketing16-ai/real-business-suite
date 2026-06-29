@@ -34,6 +34,8 @@ type Summary = {
     tasks: number;
     openTasks: number;
     overdueTasks: number;
+    teamMembers: number;
+    admins: number;
     outstanding: number;
     productsEnabled: number;
   };
@@ -90,6 +92,10 @@ type Project = { id: string; name: string; status: ProjectStatus; budget?: numbe
 type ProjectForm = { name: string; customerId: string; status: ProjectStatus; budget: string; startDate: string; dueDate: string; description: string };
 type TaskForm = { projectId: string; title: string; status: TaskStatus; priority: TaskPriority; dueDate: string; assignee: string; description: string };
 
+type Role = 'OWNER' | 'ADMIN' | 'MANAGER' | 'EMPLOYEE';
+type TeamMember = { id: string; email: string; firstName: string; lastName: string; role: Role; createdAt: string };
+type TeamMemberForm = { firstName: string; lastName: string; email: string; password: string; role: Role };
+
 const emptyCompanyForm: CompanyForm = { name: '', industry: '', email: '', phone: '', address: '' };
 const emptyEmployeeForm: EmployeeForm = { employeeNo: '', firstName: '', lastName: '', email: '', phone: '', jobTitle: '', department: '', status: 'ACTIVE' };
 const emptyCustomerForm: CustomerForm = { name: '', email: '', phone: '', companyName: '', status: 'LEAD', notes: '' };
@@ -100,6 +106,7 @@ const emptyPaymentForm: PaymentForm = { invoiceId: '', amount: '', method: 'Bank
 const emptyExpenseForm: ExpenseForm = { vendor: '', category: 'OPERATIONS', amount: '', spentAt: '', description: '', receiptUrl: '' };
 const emptyProjectForm: ProjectForm = { name: '', customerId: '', status: 'PLANNED', budget: '', startDate: '', dueDate: '', description: '' };
 const emptyTaskForm: TaskForm = { projectId: '', title: '', status: 'TODO', priority: 'MEDIUM', dueDate: '', assignee: '', description: '' };
+const emptyTeamMemberForm: TeamMemberForm = { firstName: '', lastName: '', email: '', password: 'Password123!', role: 'EMPLOYEE' };
 
 function toCompanyForm(company: Company): CompanyForm {
   return { name: company.name, industry: company.industry ?? '', email: company.email ?? '', phone: company.phone ?? '', address: company.address ?? '' };
@@ -154,6 +161,7 @@ export default function DashboardPage() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [reports, setReports] = useState<ReportSummary | null>(null);
   const [employeeForm, setEmployeeForm] = useState<EmployeeForm>(emptyEmployeeForm);
   const [customerForm, setCustomerForm] = useState<CustomerForm>(emptyCustomerForm);
@@ -164,6 +172,7 @@ export default function DashboardPage() {
   const [expenseForm, setExpenseForm] = useState<ExpenseForm>(emptyExpenseForm);
   const [projectForm, setProjectForm] = useState<ProjectForm>(emptyProjectForm);
   const [taskForm, setTaskForm] = useState<TaskForm>(emptyTaskForm);
+  const [teamMemberForm, setTeamMemberForm] = useState<TeamMemberForm>(emptyTeamMemberForm);
   const [editingEmployeeId, setEditingEmployeeId] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -178,11 +187,12 @@ export default function DashboardPage() {
   const projectStatuses: ProjectStatus[] = ['PLANNED', 'ACTIVE', 'ON_HOLD', 'COMPLETED'];
   const taskStatuses: TaskStatus[] = ['TODO', 'IN_PROGRESS', 'DONE', 'BLOCKED'];
   const taskPriorities: TaskPriority[] = ['LOW', 'MEDIUM', 'HIGH', 'URGENT'];
+  const roles: Role[] = ['OWNER', 'ADMIN', 'MANAGER', 'EMPLOYEE'];
   const companyName = company?.name ?? summary?.company.name ?? 'your company';
 
   async function loadDashboard() {
     setError('');
-    const [nextSummary, nextCompany, nextEmployees, nextCustomers, nextDeals, nextProducts, nextInvoices, nextExpenses, nextProjects, nextReports] = await Promise.all([
+    const [nextSummary, nextCompany, nextEmployees, nextCustomers, nextDeals, nextProducts, nextInvoices, nextExpenses, nextProjects, nextTeamMembers, nextReports] = await Promise.all([
       api<Summary>('/dashboard/summary'),
       api<Company>('/company'),
       api<Employee[]>('/employees'),
@@ -192,6 +202,7 @@ export default function DashboardPage() {
       api<Invoice[]>('/invoices'),
       api<Expense[]>('/expenses'),
       api<Project[]>('/projects'),
+      api<TeamMember[]>('/team'),
       api<ReportSummary>('/reports/summary'),
     ]);
     setSummary(nextSummary);
@@ -204,6 +215,7 @@ export default function DashboardPage() {
     setInvoices(nextInvoices);
     setExpenses(nextExpenses);
     setProjects(nextProjects);
+    setTeamMembers(nextTeamMembers);
     setReports(nextReports);
     setInvoiceForm((current) => ({
       ...current,
@@ -570,6 +582,47 @@ export default function DashboardPage() {
     }
   }
 
+  async function saveTeamMember(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSaving('team');
+    setError('');
+    setNotice('');
+    try {
+      await api<TeamMember>('/team', {
+        method: 'POST',
+        body: JSON.stringify({
+          firstName: teamMemberForm.firstName.trim(),
+          lastName: teamMemberForm.lastName.trim(),
+          email: teamMemberForm.email.trim(),
+          password: teamMemberForm.password,
+          role: teamMemberForm.role,
+        }),
+      });
+      setNotice(`${teamMemberForm.firstName.trim()} ${teamMemberForm.lastName.trim()} was added to the team.`);
+      setTeamMemberForm(emptyTeamMemberForm);
+      await loadDashboard();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to add team member');
+    } finally {
+      setSaving('');
+    }
+  }
+
+  async function updateTeamRole(memberId: string, role: Role) {
+    setSaving(memberId);
+    setError('');
+    setNotice('');
+    try {
+      await api<TeamMember>(`/team/${memberId}`, { method: 'PATCH', body: JSON.stringify({ role }) });
+      setNotice(`Team role updated to ${labelFromEnum(role)}.`);
+      await loadDashboard();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to update team role');
+    } finally {
+      setSaving('');
+    }
+  }
+
   async function downloadReport(type: string) {
     setSaving(`report-${type}`);
     setError('');
@@ -600,7 +653,7 @@ export default function DashboardPage() {
       <aside className="sidebar">
         <div className="brand light"><span>R</span> RBS</div>
         <nav>
-          {['Overview', 'Company', 'Employees', 'Customers', 'Sales', 'Projects', 'Products', 'Invoices', 'Payments', 'Expenses', 'Reports'].map((item) => <a className="active" key={item}>{item}</a>)}
+          {['Overview', 'Company', 'Team', 'Employees', 'Customers', 'Sales', 'Projects', 'Products', 'Invoices', 'Payments', 'Expenses', 'Reports'].map((item) => <a className="active" key={item}>{item}</a>)}
         </nav>
         <button className="signOut" onClick={signOut}>Sign out</button>
       </aside>
@@ -625,6 +678,7 @@ export default function DashboardPage() {
           <article><span>Outstanding</span><b>{loading ? '-' : currency(summary?.metrics.outstanding)}</b><small>Invoice balances</small></article>
           <article><span>Active projects</span><b>{summary?.metrics.activeProjects ?? (loading ? '-' : 0)}</b><small>{summary?.metrics.projects ?? 0} total</small></article>
           <article><span>Open tasks</span><b>{summary?.metrics.openTasks ?? (loading ? '-' : 0)}</b><small>{summary?.metrics.overdueTasks ?? 0} overdue</small></article>
+          <article><span>Team members</span><b>{summary?.metrics.teamMembers ?? (loading ? '-' : 0)}</b><small>{summary?.metrics.admins ?? 0} admins/owners</small></article>
           <article><span>Open pipeline</span><b>{loading ? '-' : currency(summary?.metrics.pipelineValue)}</b><small>{summary?.metrics.openDeals ?? 0} open deals</small></article>
           <article><span>Won deals</span><b>{loading ? '-' : currency(summary?.metrics.wonDealValue)}</b><small>{summary?.metrics.conversionRate ?? 0}% conversion</small></article>
           <article><span>Customers</span><b>{summary?.metrics.customers ?? (loading ? '-' : 0)}</b><small>{summary?.metrics.activeCustomers ?? 0} active</small></article>
@@ -655,6 +709,25 @@ export default function DashboardPage() {
             </dl>
           </article>
         </div>
+
+        <section className="recordsGrid">
+          <article className="panel">
+            <div className="panelHeading"><div><p className="eyebrow">Team access</p><h2>Add team member</h2></div><span className="badge">{teamMembers.length} users</span></div>
+            <form className="companyForm" onSubmit={saveTeamMember}>
+              <label>First name<input required minLength={2} value={teamMemberForm.firstName} onChange={(event) => setTeamMemberForm((current) => ({ ...current, firstName: event.target.value }))} /></label>
+              <label>Last name<input required minLength={2} value={teamMemberForm.lastName} onChange={(event) => setTeamMemberForm((current) => ({ ...current, lastName: event.target.value }))} /></label>
+              <label>Email<input required type="email" value={teamMemberForm.email} onChange={(event) => setTeamMemberForm((current) => ({ ...current, email: event.target.value }))} /></label>
+              <label>Temporary password<input required minLength={8} value={teamMemberForm.password} onChange={(event) => setTeamMemberForm((current) => ({ ...current, password: event.target.value }))} /></label>
+              <label>Role<select value={teamMemberForm.role} onChange={(event) => setTeamMemberForm((current) => ({ ...current, role: event.target.value as Role }))}>{roles.map((role) => <option key={role} value={role}>{labelFromEnum(role)}</option>)}</select></label>
+              <button className="button" disabled={saving === 'team'}>{saving === 'team' ? 'Adding...' : 'Add team member'}</button>
+            </form>
+          </article>
+
+          <article className="panel">
+            <div className="panelHeading"><div><p className="eyebrow">Access control</p><h2>Team members</h2></div><span className="badge">{summary?.metrics.admins ?? 0} admins</span></div>
+            <div className="tableWrap"><table className="dataTable"><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Joined</th></tr></thead><tbody>{teamMembers.map((member) => <tr key={member.id}><td><b>{member.firstName} {member.lastName}</b></td><td>{member.email}</td><td><select value={member.role} onChange={(event) => updateTeamRole(member.id, event.target.value as Role)} disabled={saving === member.id}>{roles.map((role) => <option key={role} value={role}>{labelFromEnum(role)}</option>)}</select></td><td>{new Date(member.createdAt).toLocaleDateString()}</td></tr>)}</tbody></table></div>
+          </article>
+        </section>
 
         <section className="operationsGrid">
           <article className="panel companyFormPanel">

@@ -11,6 +11,7 @@ import { InvoicesModule } from './invoices/invoices.module';
 import { ProductsModule } from './products/products.module';
 import { ProjectsModule } from './projects/projects.module';
 import { ReportsModule } from './reports/reports.module';
+import { TeamModule } from './team/team.module';
 import { HealthController } from './health.controller';
 import { PrismaModule } from './prisma/prisma.module';
 
@@ -28,6 +29,7 @@ import { PrismaModule } from './prisma/prisma.module';
     ProjectsModule,
     InvoicesModule,
     ReportsModule,
+    TeamModule,
     DashboardModule,
   ],
   controllers: [HealthController],
