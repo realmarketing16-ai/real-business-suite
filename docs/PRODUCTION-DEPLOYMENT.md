@@ -127,6 +127,8 @@ Configure that webhook endpoint in Stripe and set:
 
 Before public paid launch, confirm your pricing, tax handling, refund policy, and subscription cancellation flow. Use Stripe test mode first, then switch to live keys only after a successful test checkout and webhook sync.
 
+Accounts with `TRIALING` or `ACTIVE` subscriptions can use the business suite. Accounts marked `PAST_DUE` or `CANCELED` see a billing warning and business creation/export actions are limited while Billing remains available for owner/admin recovery.
+
 ## Backups
 
 Run database backups at least daily and before every production migration.
@@ -162,6 +164,7 @@ Production hosts should use managed PostgreSQL automated backups plus manual bac
 - Owner/admin audit log shows recent account security events.
 - Billing section shows the intended plan, status, and payment provider readiness.
 - Stripe test checkout completes and webhook updates subscription status.
+- Past-due/canceled subscription access limits are tested.
 - Email mode is intentional (`dry-run` for test, Resend for launch).
 - Password reset emails are delivered successfully or intentionally dry-run during test.
 - First owner account credentials are stored securely.
