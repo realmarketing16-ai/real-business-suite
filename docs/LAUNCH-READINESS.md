@@ -4,6 +4,7 @@ Use this checklist before letting real customers rely on Real Business Suite.
 
 ## Product readiness
 
+- [ ] Local smoke test passes with `pnpm smoke:local`.
 - [ ] Company registration/login tested.
 - [ ] Password reset request and reset-token flow tested.
 - [ ] Company profile can be edited.

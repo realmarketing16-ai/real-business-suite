@@ -49,6 +49,7 @@ Database container/local compose:
 4. Verify:
 
    - API health: `GET /api/health`
+   - Local smoke test before paid hosting: `pnpm smoke:local`
    - Login/register flow
    - Password reset request and reset-token flow
    - Dashboard load
@@ -154,6 +155,7 @@ Production hosts should use managed PostgreSQL automated backups plus manual bac
 ## Release checklist
 
 - CI is green on `main`.
+- Local smoke test passes before paying for production services.
 - `pnpm db:deploy` completed.
 - Backup completed and restore process has been tested.
 - Backup checksum has been captured and stored securely.
