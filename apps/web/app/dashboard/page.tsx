@@ -1,6 +1,6 @@
 'use client';
 
-import { api } from '@/lib/api';
+import { API_URL, ApiError, api, authHeaders, clearSession, getStoredUser } from '@/lib/api';
 import { useRouter } from 'next/navigation';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 
@@ -179,15 +179,6 @@ function labelFromEnum(value: string) {
   return value.toLowerCase().replace('_', ' ').replace('_', ' ');
 }
 
-function getStoredUser(): CurrentUser | null {
-  try {
-    const rawUser = window.localStorage.getItem('rbs_user');
-    return rawUser ? JSON.parse(rawUser) as CurrentUser : null;
-  } catch {
-    return null;
-  }
-}
-
 export default function DashboardPage() {
   const router = useRouter();
   const [summary, setSummary] = useState<Summary | null>(null);
@@ -324,10 +315,20 @@ export default function DashboardPage() {
   }
 
   useEffect(() => {
-    setCurrentUser(getStoredUser());
+    const storedUser = getStoredUser<CurrentUser>();
+    if (!storedUser) {
+      router.push('/login');
+      return;
+    }
+
+    setCurrentUser(storedUser);
     loadDashboard()
       .catch((cause) => {
         const message = cause instanceof Error ? cause.message : 'Unable to load dashboard';
+        if (cause instanceof ApiError && cause.status === 401) {
+          router.push('/login');
+          return;
+        }
         setError(message);
         if (message.toLowerCase().includes('token')) router.push('/login');
       })
@@ -335,8 +336,7 @@ export default function DashboardPage() {
   }, [router]);
 
   function signOut() {
-    window.localStorage.removeItem('rbs_token');
-    window.localStorage.removeItem('rbs_user');
+    clearSession();
     router.push('/login');
   }
 
@@ -779,10 +779,14 @@ export default function DashboardPage() {
     setError('');
     setNotice('');
     try {
-      const token = window.localStorage.getItem('rbs_token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api'}/invoices/${invoice.id}/pdf`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      const response = await fetch(`${API_URL}/invoices/${invoice.id}/pdf`, {
+        headers: authHeaders(),
       });
+      if (response.status === 401) {
+        clearSession();
+        router.push('/login');
+        throw new Error('Your session expired. Please sign in again.');
+      }
       if (!response.ok) throw new Error('Unable to download invoice PDF');
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
@@ -1007,10 +1011,14 @@ export default function DashboardPage() {
     setError('');
     setNotice('');
     try {
-      const token = window.localStorage.getItem('rbs_token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api'}/reports/export/${type}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      const response = await fetch(`${API_URL}/reports/export/${type}`, {
+        headers: authHeaders(),
       });
+      if (response.status === 401) {
+        clearSession();
+        router.push('/login');
+        throw new Error('Your session expired. Please sign in again.');
+      }
       if (!response.ok) throw new Error('Unable to export report');
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
