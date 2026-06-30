@@ -1,9 +1,10 @@
 import type { Metadata } from 'next';
+import { brand } from '@/lib/brand';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Real Business Suite',
-  description: 'One login. Every part of your business.',
+  title: brand.name,
+  description: brand.tagline,
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { FormEvent, useState } from 'react';
 import { api } from '@/lib/api';
+import { brand } from '@/lib/brand';
 
 export default function ForgotPasswordPage() {
   const [error, setError] = useState('');
@@ -28,7 +29,7 @@ export default function ForgotPasswordPage() {
   return (
     <main className="authPage">
       <section className="authBrand">
-        <div className="brand light"><span>R</span> Real Business Suite</div>
+        <div className="brand light"><span>{brand.initial}</span> {brand.name}</div>
         <blockquote>Recover access without calling the whole office.</blockquote>
       </section>
       <section className="authPanel">
