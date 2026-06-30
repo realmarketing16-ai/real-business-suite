@@ -1,4 +1,4 @@
-:root { --ink:#13231b; --green:#0b6b45; --lime:#d6f45f; --cream:#f5f2e9; --muted:#68766f; --line:#dfe5e0; --white:#fff; }
+:root { --brand-primary:#0b6b45; --brand-primary-dark:#083c2a; --brand-primary-deep:#092e22; --brand-accent:#d6f45f; --brand-surface:#f5f2e9; --brand-surface-soft:#f4f6f2; --brand-text:#13231b; --brand-muted:#68766f; --brand-line:#dfe5e0; --brand-danger:#9b2719; --brand-warning:#926d00; --brand-success:#11733d; --ink:var(--brand-text); --green:var(--brand-primary); --lime:var(--brand-accent); --cream:var(--brand-surface); --muted:var(--brand-muted); --line:var(--brand-line); --white:#fff; }
 * { box-sizing:border-box; }
 html, body { margin:0; min-height:100%; }
 body { color:var(--ink); background:var(--cream); font-family:Arial, Helvetica, sans-serif; }
