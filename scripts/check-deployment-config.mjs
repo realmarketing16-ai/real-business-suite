@@ -28,8 +28,8 @@ const ciWorkflow = read('.github/workflows/ci.yml');
 
 addCheck('package scripts', includesAll(JSON.stringify(packageJson.scripts ?? {}), ['smoke:local', 'smoke:hosted', 'readiness:prod', 'secret:jwt', 'secret:check', 'db:deploy']), 'Expected launch scripts are present.');
 addCheck('JWT secret generator', includesAll(secretGenerator, ['randomBytes', 'JWT_SECRET=', 'Do not commit']), 'JWT secret helper generates a strong local secret without storing it.');
-addCheck('Vercel build command', vercelJson.buildCommand === 'pnpm --filter @rbs/web build', 'Vercel builds the web workspace from the repo root.');
-addCheck('Vercel output directory', vercelJson.outputDirectory === 'apps/web/.next', 'Vercel output directory points to the web app build output.');
+addCheck('Vercel build command', vercelJson.buildCommand === 'pnpm build', 'Vercel builds from the apps/web project root.');
+addCheck('Vercel output directory', vercelJson.outputDirectory === '.next', 'Vercel output directory points to the Next.js build output inside apps/web.');
 addCheck('Render health check', renderYaml.includes('healthCheckPath: /api/health'), 'Render health check points to the API health route.');
 addCheck('Render migrations on start', renderYaml.includes('pnpm prisma:deploy'), 'Render start command applies Prisma migrations before boot.');
 addCheck('Render production env', includesAll(renderYaml, ['NODE_ENV', 'production', 'DATABASE_URL', 'JWT_SECRET', 'WEB_URL']), 'Render config declares required production env values.');
