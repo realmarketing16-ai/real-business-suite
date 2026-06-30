@@ -49,7 +49,9 @@ export function validateEnv(env: Env) {
   }
 
   const apiPort = env.API_PORT;
+  const hostPort = env.PORT;
   if (apiPort && Number.isNaN(Number(apiPort))) errors.push('API_PORT must be a number.');
+  if (hostPort && Number.isNaN(Number(hostPort))) errors.push('PORT must be a number.');
 
   if (errors.length > 0) {
     throw new Error(`Invalid API environment:\n- ${errors.join('\n- ')}`);

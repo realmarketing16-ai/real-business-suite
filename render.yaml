@@ -11,8 +11,6 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
-      - key: API_PORT
-        value: 4000
       - key: DATABASE_URL
         sync: false
       - key: JWT_SECRET
