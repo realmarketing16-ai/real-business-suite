@@ -120,7 +120,7 @@ type TeamMemberForm = { firstName: string; lastName: string; email: string; pass
 type AuditLog = { id: string; action: string; entityType: string; entityId?: string | null; description: string; actorName: string; createdAt: string };
 type EmailStatus = 'QUEUED' | 'SENT' | 'FAILED';
 type EmailMessage = { id: string; to: string; subject: string; bodyPreview: string; status: EmailStatus; relatedType?: string | null; createdAt: string };
-type ReadinessCheck = { key: string; label: string; status: 'PASS' | 'WARN' | 'FAIL'; detail: string };
+type ReadinessCheck = { key: string; label: string; status: 'PASS' | 'WARN' | 'FAIL'; detail: string; hidden?: boolean };
 type ReadinessStatus = { status: 'READY' | 'NEEDS_REVIEW' | 'NOT_READY'; summary: { pass: number; warn: number; fail: number }; checkedAt: string; checks: ReadinessCheck[] };
 type SubscriptionPlan = 'FREE' | 'STARTER' | 'BUSINESS' | 'PRO';
 type SubscriptionStatus = 'TRIALING' | 'ACTIVE' | 'PAST_DUE' | 'CANCELED';
@@ -1330,7 +1330,7 @@ export default function DashboardPage() {
             <article><span>Warnings</span><b>{readiness?.summary.warn ?? '-'}</b><small>Needs review</small></article>
             <article><span>Failures</span><b>{readiness?.summary.fail ?? '-'}</b><small>Launch blockers</small></article>
           </div>
-          <div className="tableWrap"><table className="dataTable"><thead><tr><th>Check</th><th>Status</th><th>Detail</th></tr></thead><tbody>{(readiness?.checks ?? []).map((item) => <tr key={item.key}><td><b>{item.label}</b></td><td><span className={`statusPill ${item.status.toLowerCase()}`}>{labelFromEnum(item.status)}</span></td><td>{item.detail}</td></tr>)}</tbody></table></div>
+          <div className="tableWrap"><table className="dataTable"><thead><tr><th>Check</th><th>Status</th><th>Detail</th></tr></thead><tbody>{(readiness?.checks ?? []).filter((item) => !item.hidden).map((item) => <tr key={item.key}><td><b>{item.label}</b></td><td><span className={`statusPill ${item.status.toLowerCase()}`}>{labelFromEnum(item.status)}</span></td><td>{item.detail}</td></tr>)}</tbody></table></div>
           {!readiness && <div className="emptyState"><h3>Readiness unavailable</h3><p className="muted">Owners and admins will see production readiness checks here.</p></div>}
         </section>}
 
