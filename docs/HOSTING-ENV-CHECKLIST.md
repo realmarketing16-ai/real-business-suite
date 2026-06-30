@@ -24,12 +24,20 @@ Keep this value private. You will paste it into Render, not into the repository.
 
 Create the Render web service from this GitHub repository. The root `render.yaml` already defines the API build command, start command, and health check.
 
+Generate a strong JWT secret locally:
+
+```text
+pnpm secret:jwt
+```
+
+Copy only the generated `JWT_SECRET=...` value into Render. Do not save it in the repository.
+
 Paste these into the Render service environment variables:
 
 ```text
 NODE_ENV=production
 DATABASE_URL=<Neon pooled connection string with ?sslmode=require>
-JWT_SECRET=<generate a long random secret in Render>
+JWT_SECRET=<paste the value from pnpm secret:jwt>
 WEB_URL=<your Vercel web URL after Vercel deploys>
 EMAIL_DRY_RUN=true
 BILLING_CURRENCY=PGK

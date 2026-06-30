@@ -7,7 +7,7 @@ This guide captures the minimum production setup for Real Business Suite.
 API:
 
 - `DATABASE_URL`: production PostgreSQL connection string.
-- `JWT_SECRET`: at least 32 random characters; never reuse local/dev values.
+- `JWT_SECRET`: at least 32 random characters; never reuse local/dev values. Generate one with `pnpm secret:jwt` or the hosting provider secret generator.
 - `NODE_ENV`: set to `production` for public launch.
 - `WEB_URL`: public web app origin, for example `https://app.yourdomain.com`; used for API CORS. Multiple allowed origins can be comma-separated.
 - `PORT`: usually injected by the hosting provider.
@@ -38,6 +38,14 @@ Database container/local compose:
 - `POSTGRES_PASSWORD`
 
 ## Deployment sequence
+
+Generate a strong JWT secret before creating the production API service:
+
+```powershell
+pnpm secret:jwt
+```
+
+Paste the generated value into the hosting provider as `JWT_SECRET`. Do not commit it.
 
 1. Build the app:
 
