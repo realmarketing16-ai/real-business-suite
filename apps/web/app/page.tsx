@@ -7,7 +7,7 @@ export default function Home() {
     <main className="landing">
       <nav className="nav shell">
         <BrandMark />
-        <div className="navActions"><Link href="/support">Support</Link><Link href="/login">Sign in</Link><Link className="button small" href="/register">Start free</Link></div>
+        <div className="navActions"><Link href="/pricing">Pricing</Link><Link href="/support">Support</Link><Link href="/login">Sign in</Link><Link className="button small" href="/register">Start free</Link></div>
       </nav>
       <section className="hero shell">
         <div>
@@ -28,7 +28,7 @@ export default function Home() {
       </section>
       <footer className="publicFooter shell">
         <span>© {new Date().getFullYear()} {brand.name}</span>
-        <nav><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><Link href="/support">Support</Link></nav>
+        <nav><Link href="/pricing">Pricing</Link><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><Link href="/support">Support</Link></nav>
       </footer>
     </main>
   );

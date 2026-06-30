@@ -45,7 +45,7 @@ export default function LoginPage() {
           <button className="button" disabled={loading}>{loading ? 'Signing in...' : 'Sign in'}</button>
           <p className="center muted"><Link href="/forgot-password">Forgot your password?</Link></p>
           <p className="center muted">New to {brand.name}? <Link href="/register">Create an account</Link></p>
-          <p className="legalLinks"><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><Link href="/support">Support</Link></p>
+          <p className="legalLinks"><Link href="/pricing">Pricing</Link><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><Link href="/support">Support</Link></p>
         </form>
       </section>
     </main>

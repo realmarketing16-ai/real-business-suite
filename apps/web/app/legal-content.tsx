@@ -15,7 +15,7 @@ export function LegalPage({ eyebrow, title, description, children }: LegalPagePr
     <main className="legalPage">
       <nav className="nav shell">
         <Link href="/"><BrandMark /></Link>
-        <div className="navActions"><Link href="/support">Support</Link><Link href="/login">Sign in</Link><Link className="button small" href="/register">Start free</Link></div>
+        <div className="navActions"><Link href="/pricing">Pricing</Link><Link href="/support">Support</Link><Link href="/login">Sign in</Link><Link className="button small" href="/register">Start free</Link></div>
       </nav>
       <section className="legalHero shell">
         <p className="eyebrow">{eyebrow}</p>
@@ -27,7 +27,7 @@ export function LegalPage({ eyebrow, title, description, children }: LegalPagePr
       </section>
       <footer className="publicFooter shell">
         <span>© {new Date().getFullYear()} {brand.name}</span>
-        <nav><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><Link href="/support">Support</Link></nav>
+        <nav><Link href="/pricing">Pricing</Link><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><Link href="/support">Support</Link></nav>
       </footer>
     </main>
   );
