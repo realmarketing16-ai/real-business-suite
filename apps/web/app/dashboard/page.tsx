@@ -276,6 +276,43 @@ export default function DashboardPage() {
   ];
   const completedOnboardingItems = onboardingItems.filter((item) => item.done).length;
   const onboardingProgress = Math.round((completedOnboardingItems / onboardingItems.length) * 100);
+  const webUrl = typeof window === 'undefined' ? '' : window.location.origin;
+  const apiIsHosted = /^https:\/\/.+/i.test(API_URL) && !API_URL.includes('localhost') && !API_URL.includes('127.0.0.1');
+  const webIsHosted = /^https:\/\/.+/i.test(webUrl) && !webUrl.includes('localhost') && !webUrl.includes('127.0.0.1');
+  const launchEnvironmentItems = [
+    {
+      label: 'Neon database',
+      done: Boolean(readiness?.checks.some((item) => item.key === 'database' && item.status === 'PASS')),
+      detail: 'Create free Postgres, then paste DATABASE_URL into Render.',
+    },
+    {
+      label: 'Render API',
+      done: apiIsHosted,
+      detail: apiIsHosted ? API_URL : 'Deploy API, then set NEXT_PUBLIC_API_URL in Vercel.',
+    },
+    {
+      label: 'Vercel web app',
+      done: webIsHosted,
+      detail: webIsHosted ? webUrl : 'Deploy web app, then copy its URL back to Render WEB_URL.',
+    },
+    {
+      label: 'PGK pricing and branding',
+      done: billing?.currency === 'PGK',
+      detail: billing?.currency === 'PGK' ? 'Billing is using PGK plan prices.' : 'Set BILLING_CURRENCY=PGK and NEXT_PUBLIC_CURRENCY=PGK.',
+    },
+    {
+      label: 'Email mode',
+      done: Boolean(readiness?.checks.some((item) => item.key === 'email' && item.status !== 'FAIL')),
+      detail: 'Keep EMAIL_DRY_RUN=true for the free pilot; add Resend only when ready.',
+    },
+    {
+      label: 'Payments',
+      done: Boolean(billing?.checkoutReady),
+      detail: billing?.checkoutReady ? 'Stripe checkout keys are detected.' : 'Leave Stripe blank until private pilot testing works.',
+    },
+  ];
+  const completedLaunchEnvironmentItems = launchEnvironmentItems.filter((item) => item.done).length;
+  const launchEnvironmentProgress = Math.round((completedLaunchEnvironmentItems / launchEnvironmentItems.length) * 100);
 
   async function loadDashboard() {
     setError('');
@@ -1231,6 +1268,30 @@ export default function DashboardPage() {
           </div>
           <div className="tableWrap"><table className="dataTable"><thead><tr><th>Check</th><th>Status</th><th>Detail</th></tr></thead><tbody>{(readiness?.checks ?? []).map((item) => <tr key={item.key}><td><b>{item.label}</b></td><td><span className={`statusPill ${item.status.toLowerCase()}`}>{labelFromEnum(item.status)}</span></td><td>{item.detail}</td></tr>)}</tbody></table></div>
           {!readiness && <div className="emptyState"><h3>Readiness unavailable</h3><p className="muted">Owners and admins will see production readiness checks here.</p></div>}
+        </section>}
+
+        {isOwnerOrAdmin && <section className="panel">
+          <div className="panelHeading">
+            <div><p className="eyebrow">Hosting launch center</p><h2>{completedLaunchEnvironmentItems} of {launchEnvironmentItems.length} hosting steps ready</h2></div>
+            <span className="badge">{launchEnvironmentProgress}% hosted</span>
+          </div>
+          <div className="progress"><span style={{ width: `${launchEnvironmentProgress}%` }} /></div>
+          <div className="launchEnvGrid">
+            {launchEnvironmentItems.map((item) => (
+              <article className={`onboardingItem ${item.done ? 'done' : ''}`} key={item.label}>
+                <span>{item.done ? '✓' : '!'}</span>
+                <div>
+                  <b>{item.label}</b>
+                  <small>{item.detail}</small>
+                </div>
+              </article>
+            ))}
+          </div>
+          <div className="launchCommand">
+            <b>Hosted smoke test</b>
+            <code>pnpm smoke:hosted -- -ApiUrl {apiIsHosted ? API_URL : 'https://your-render-api-url.onrender.com/api'} -WebUrl {webIsHosted ? webUrl : 'https://your-vercel-url.vercel.app'}</code>
+          </div>
+          <p className="muted">Use <code>docs/HOSTING-ENV-CHECKLIST.md</code> for the exact Neon, Render, and Vercel variables. Keep email dry-run and payments off until the private pilot is working.</p>
         </section>}
 
         {isOwnerOrAdmin && <section className="panel">
