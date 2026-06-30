@@ -1202,9 +1202,6 @@ export default function DashboardPage() {
 
         {error && <p className="error">{error}</p>}
         {notice && <p className="success">{notice}</p>}
-        {billing && billing.access.level !== 'ok' && <p className={billing.access.level === 'block' ? 'error' : 'success'}>
-          Billing: {billing.access.message}
-        </p>}
         {billingBlocked && isOwnerOrAdmin && <p className="muted">Billing remains available so an owner/admin can restore access.</p>}
         {!canManageBusiness && !billingBlocked && <p className="muted">You are signed in with employee access. Create, billing, admin, and export controls are hidden; task status updates remain available.</p>}
         {billingBlocked && !isOwnerOrAdmin && <p className="muted">Business actions are limited until an owner/admin restores subscription access.</p>}
