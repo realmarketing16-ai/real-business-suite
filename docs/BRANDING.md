@@ -17,9 +17,11 @@ NEXT_PUBLIC_SUPPORT_CONTACT="support@example.com"
 NEXT_PUBLIC_DEMO_REVENUE="PGK 42.5k"
 NEXT_PUBLIC_BRAND_LOGO_PATH=/brand/real-logo.png
 NEXT_PUBLIC_BRAND_ICON_PATH=/brand/real-icon.png
+BRAND_NAME="Real Business Suite"
+SUPPORT_CONTACT="support@example.com"
 ```
 
-The app reads these values from `apps/web/lib/brand.ts`.
+The web app reads public values from `apps/web/lib/brand.ts`. The API uses `BRAND_NAME` and `SUPPORT_CONTACT` for generated emails and PDFs, falling back to matching `NEXT_PUBLIC_*` values when available.
 
 Logo assets are stored in `apps/web/public/brand/`.
 

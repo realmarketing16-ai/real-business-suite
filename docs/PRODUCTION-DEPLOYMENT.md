@@ -18,6 +18,7 @@ API:
 - `BILLING_CURRENCY`: billing/payment currency, default `PGK`.
 - `BILLING_CURRENCY_LOCALE`: display locale for billing, default `en-PG`.
 - `BILLING_STARTER_PRICE_MONTHLY`, `BILLING_BUSINESS_PRICE_MONTHLY`, `BILLING_PRO_PRICE_MONTHLY`: monthly package prices in the billing currency.
+- `BRAND_NAME`, `SUPPORT_CONTACT`: brand/support text for generated API emails and PDFs.
 - `STRIPE_SECRET_KEY`: required before charging customers online.
 - `STRIPE_WEBHOOK_SECRET`: required before trusting subscription payment events.
 

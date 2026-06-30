@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { AuthenticatedUser, JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ensureManagerOrAbove } from '../auth/roles';
+import { publicBrandName, publicSupportContact } from '../config/brand';
 import { formatMoney } from '../config/money';
 import { EmailService } from '../email/email.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -119,7 +120,7 @@ export class QuotesController {
       companyId: user.companyId,
       to: quote.customer.email,
       subject: `${quote.company.name} quote ${quote.quoteNo}`,
-      body: `Hello ${quote.customer.name},\n\n${quote.company.name} has prepared quote ${quote.quoteNo} for ${currency(quote.total)}.\n\nStatus: ${quote.status.toLowerCase()}\nValid until: ${formatDate(quote.validUntil)}\n\nReply to this email if you would like to approve or discuss the quote.`,
+      body: `Hello ${quote.customer.name},\n\n${quote.company.name} has prepared quote ${quote.quoteNo} for ${currency(quote.total)}.\n\nStatus: ${quote.status.toLowerCase()}\nValid until: ${formatDate(quote.validUntil)}\n\nThis message was prepared through ${publicBrandName()}.\n\nFor questions, contact ${publicSupportContact()} or reply to your company contact.`,
       relatedType: 'quote',
       relatedId: quote.id,
     });
