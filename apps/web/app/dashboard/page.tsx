@@ -433,6 +433,26 @@ export default function DashboardPage() {
     setActiveSection(sectionId);
   }
 
+  function isSectionVisible(sectionId: string) {
+    const relatedSections: Record<string, string[]> = {
+      overview: ['overview', 'company-summary', 'launch-setup', 'readiness', 'hosting'],
+      company: ['company-summary', 'settings'],
+      products: ['customers'],
+      inventory: ['inventory', 'purchasing', 'purchase-orders'],
+      purchasing: ['purchasing', 'purchase-orders'],
+      projects: ['projects', 'projects-board'],
+      payments: ['invoices'],
+      billing: ['billing', 'readiness', 'hosting'],
+      audit: ['audit', 'email'],
+    };
+
+    return (relatedSections[activeSection] ?? [activeSection]).includes(sectionId);
+  }
+
+  function sectionClass(baseClass: string, sectionId: string) {
+    return `${baseClass} dashboardSection ${isSectionVisible(sectionId) ? 'visibleSection' : ''}`.trim();
+  }
+
   function signOut() {
     clearSession();
     router.push('/login');
@@ -1214,7 +1234,7 @@ export default function DashboardPage() {
       </aside>
 
       <section className="dashboard">
-        <header id="overview" className="dashboardSection">
+        <header id="overview" className={sectionClass('', 'overview')}>
           <div>
             <p className="eyebrow">Founder dashboard</p>
             <h1>{summary ? `Welcome to ${companyName}` : 'Welcome back'}</h1>
@@ -1256,7 +1276,7 @@ export default function DashboardPage() {
           <article><span>Suite modules</span><b>{summary?.metrics.productsEnabled ?? '-'}</b><small>Core company system</small></article>
         </div>
 
-        <div className="dashboardGrid dashboardSection" id="company">
+        <div className={sectionClass('dashboardGrid', 'company-summary')} id="company">
           <article className="panel">
             <div className="panelHeading">
               <div><p className="eyebrow">Today</p><h2>Recommended actions</h2></div>
@@ -1277,7 +1297,7 @@ export default function DashboardPage() {
           </article>
         </div>
 
-        <section className="panel">
+        <section className={sectionClass('panel', 'launch-setup')}>
           <div className="panelHeading">
             <div>
               <p className="eyebrow">Launch setup</p>
@@ -1300,7 +1320,7 @@ export default function DashboardPage() {
           {!canManageBusiness && <p className="muted">Your role is focused on viewing records and updating task status. Managers, admins, and owners can complete setup items.</p>}
         </section>
 
-        {isOwnerOrAdmin && <section className="panel dashboardSection" id="billing">
+        {isOwnerOrAdmin && <section className={sectionClass('panel', 'readiness')} id="readiness">
           <div className="panelHeading">
             <div><p className="eyebrow">Launch readiness</p><h2>Production self-check</h2></div>
             <span className={`badge ${readiness?.status?.toLowerCase() ?? ''}`}>{readiness ? labelFromEnum(readiness.status) : 'Not checked'}</span>
@@ -1314,7 +1334,7 @@ export default function DashboardPage() {
           {!readiness && <div className="emptyState"><h3>Readiness unavailable</h3><p className="muted">Owners and admins will see production readiness checks here.</p></div>}
         </section>}
 
-        {isOwnerOrAdmin && <section className="panel">
+        {isOwnerOrAdmin && <section className={sectionClass('panel', 'hosting')}>
           <div className="panelHeading">
             <div><p className="eyebrow">Hosting launch center</p><h2>{completedLaunchEnvironmentItems} of {launchEnvironmentItems.length} hosting steps ready</h2></div>
             <span className="badge">{launchEnvironmentProgress}% hosted</span>
@@ -1338,7 +1358,7 @@ export default function DashboardPage() {
           <p className="muted">Use <code>docs/HOSTING-ENV-CHECKLIST.md</code> for the exact Neon, Render, and Vercel variables. Keep email dry-run and payments off until the private pilot is working.</p>
         </section>}
 
-        {isOwnerOrAdmin && <section className="panel">
+        {isOwnerOrAdmin && <section className={sectionClass('panel', 'billing')} id="billing">
           <div className="panelHeading">
             <div><p className="eyebrow">Billing</p><h2>Subscription and launch monetization</h2></div>
             <span className={`badge ${billing?.subscription.status.toLowerCase() ?? ''}`}>{billing ? labelFromEnum(billing.subscription.status) : 'Not configured'}</span>
@@ -1372,7 +1392,7 @@ export default function DashboardPage() {
           {!billing?.checkoutReady && <p className="muted">Next launch step: add Stripe checkout keys and webhook handling so customers can pay online. This billing foundation keeps plan/status tracking ready now.</p>}
         </section>}
 
-        <section className="recordsGrid dashboardSection" id="team">
+        <section className={sectionClass('recordsGrid', 'team')} id="team">
           {isOwnerOrAdmin && <article className="panel">
             <div className="panelHeading"><div><p className="eyebrow">Team access</p><h2>Add team member</h2></div><span className="badge">{teamMembers.length} users</span></div>
             <form className="companyForm" onSubmit={saveTeamMember}>
@@ -1391,20 +1411,20 @@ export default function DashboardPage() {
           </article>
         </section>
 
-        {isOwnerOrAdmin && <section className="panel dashboardSection" id="audit">
+        {isOwnerOrAdmin && <section className={sectionClass('panel', 'audit')} id="audit">
           <div className="panelHeading"><div><p className="eyebrow">Audit trail</p><h2>Recent company activity</h2></div><span className="badge">{auditLogs.length} events</span></div>
           <div className="tableWrap"><table className="dataTable"><thead><tr><th>Action</th><th>Record</th><th>Actor</th><th>When</th></tr></thead><tbody>{auditLogs.map((log) => <tr key={log.id}><td><b>{log.description}</b><small>{labelFromEnum(log.action)}</small></td><td>{labelFromEnum(log.entityType)}</td><td>{log.actorName}</td><td>{new Date(log.createdAt).toLocaleString()}</td></tr>)}</tbody></table></div>
           {auditLogs.length === 0 && <div className="emptyState"><h3>No audit events yet</h3><p className="muted">Owners and admins will see company changes here as the team works.</p></div>}
         </section>}
 
-        {isOwnerOrAdmin && <section className="panel">
+        {isOwnerOrAdmin && <section className={sectionClass('panel', 'email')} id="email">
           <div className="panelHeading"><div><p className="eyebrow">Email outbox</p><h2>Queued business emails</h2></div><span className="badge">{emailMessages.length} messages</span></div>
           <div className="exportActions"><button className="ghostButton" onClick={sendQueuedEmails} disabled={saving === 'email-send-queued' || emailMessages.filter((message) => message.status === 'QUEUED').length === 0}>{saving === 'email-send-queued' ? 'Sending...' : 'Send queued emails'}</button></div>
           <div className="tableWrap"><table className="dataTable"><thead><tr><th>Email</th><th>Related</th><th>Status</th><th>Queued</th><th>Action</th></tr></thead><tbody>{emailMessages.map((message) => <tr key={message.id}><td><b>{message.subject}</b><small>To {message.to} Â· {message.bodyPreview}</small></td><td>{message.relatedType ? labelFromEnum(message.relatedType) : '-'}</td><td><span className={`statusPill ${message.status.toLowerCase()}`}>{labelFromEnum(message.status)}</span></td><td>{new Date(message.createdAt).toLocaleString()}</td><td>{message.status !== 'SENT' && <button className="ghostButton" onClick={() => sendEmailMessage(message)} disabled={saving === `email-send-${message.id}`}>{saving === `email-send-${message.id}` ? 'Sending...' : 'Send'}</button>}</td></tr>)}</tbody></table></div>
           {emailMessages.length === 0 && <div className="emptyState"><h3>No emails queued yet</h3><p className="muted">Invoice, quote, and team invite messages will appear here before SMTP delivery is connected.</p></div>}
         </section>}
 
-        {canManageBusiness && <section className="operationsGrid dashboardSection" id="settings">
+        {canManageBusiness && <section className={sectionClass('operationsGrid', 'settings')} id="settings">
           {isOwnerOrAdmin && <article className="panel companyFormPanel">
             <div className="panelHeading"><div><p className="eyebrow">Company settings</p><h2>Business profile</h2></div><span className="badge">Profile</span></div>
             <form className="companyForm" onSubmit={saveCompany}>
@@ -1470,7 +1490,7 @@ export default function DashboardPage() {
           </article>
         </section>}
 
-        <section className="employeeSection dashboardSection" id="employees">
+        <section className={sectionClass('employeeSection', 'employees')} id="employees">
           {canManageBusiness && <article className="panel employeeFormPanel">
             <div className="panelHeading">
               <div><p className="eyebrow">Employee management</p><h2>{editingEmployeeId ? `Edit ${activeEmployee?.firstName ?? 'employee'}` : 'Add an employee'}</h2></div>
@@ -1510,7 +1530,7 @@ export default function DashboardPage() {
           </article>
         </section>
 
-        <section className="panel dashboardSection" id="sales">
+        <section className={sectionClass('panel', 'sales')} id="sales">
           <div className="panelHeading">
             <div><p className="eyebrow">Sales board</p><h2>Deal pipeline</h2></div>
             <span className="badge">{currency(summary?.metrics.pipelineValue)} open pipeline</span>
@@ -1544,7 +1564,7 @@ export default function DashboardPage() {
           </div>
         </section>
 
-        {canManageBusiness && <section className="recordsGrid dashboardSection" id="projects">
+        {canManageBusiness && <section className={sectionClass('recordsGrid', 'projects')} id="projects">
           <article className="panel">
             <div className="panelHeading"><div><p className="eyebrow">Projects</p><h2>Create project</h2></div><span className="badge">{projects.length} projects</span></div>
             <form className="companyForm" onSubmit={saveProject}>
@@ -1574,7 +1594,7 @@ export default function DashboardPage() {
           </article>
         </section>}
 
-        <section className="panel dashboardSection" id="projects-board">
+        <section className={sectionClass('panel', 'projects-board')} id="projects-board">
           <div className="panelHeading">
             <div><p className="eyebrow">Work board</p><h2>Projects and tasks</h2></div>
             <span className="badge">{summary?.metrics.overdueTasks ?? 0} overdue</span>
@@ -1609,13 +1629,13 @@ export default function DashboardPage() {
           </div>
         </section>
 
-        <section className="recordsGrid dashboardSection" id="customers">
+        <section className={sectionClass('recordsGrid', 'customers')} id="customers">
           <span className="dashboardAnchor" id="products" />
           <article className="panel"><div className="panelHeading"><div><p className="eyebrow">CRM records</p><h2>Customers</h2></div><span className="badge">{customers.length} total</span></div><div className="tableWrap"><table className="dataTable"><thead><tr><th>Name</th><th>Company</th><th>Contact</th><th>Status</th></tr></thead><tbody>{customers.map((customer) => <tr key={customer.id}><td><b>{customer.name}</b></td><td>{customer.companyName || '-'}</td><td>{customer.email || customer.phone || '-'}</td><td>{canManageBusiness ? <select value={customer.status} onChange={(event) => updateCustomerStatus(customer.id, event.target.value as CustomerStatus)} disabled={saving === customer.id}><option value="LEAD">Lead</option><option value="ACTIVE">Active</option><option value="INACTIVE">Inactive</option></select> : <span className={`statusPill ${customer.status.toLowerCase()}`}>{customer.status.toLowerCase()}</span>}</td></tr>)}</tbody></table></div></article>
           <article className="panel"><div className="panelHeading"><div><p className="eyebrow">Catalog records</p><h2>Products/services</h2></div><span className="badge">{products.length} total</span></div><div className="tableWrap"><table className="dataTable"><thead><tr><th>Name</th><th>Type</th><th>Price</th><th>Status</th></tr></thead><tbody>{products.map((product) => <tr key={product.id}><td><b>{product.name}</b><small>{product.description || ''}</small></td><td>{product.type.toLowerCase()}</td><td>{currency(product.unitPrice)}</td><td>{canManageBusiness ? <button className="ghostButton" onClick={() => updateProductActive(product.id, !product.active)} disabled={saving === product.id}>{product.active ? 'Deactivate' : 'Activate'}</button> : <span className={`statusPill ${product.active ? 'active' : 'inactive'}`}>{product.active ? 'active' : 'inactive'}</span>}</td></tr>)}</tbody></table></div></article>
         </section>
 
-        {canManageBusiness && <section className="recordsGrid dashboardSection" id="inventory">
+        {canManageBusiness && <section className={sectionClass('recordsGrid', 'inventory')} id="inventory">
           <article className="panel">
             <div className="panelHeading"><div><p className="eyebrow">Suppliers</p><h2>Add supplier</h2></div><span className="badge">{suppliers.length} vendors</span></div>
             <form className="companyForm" onSubmit={saveSupplier}>
@@ -1643,7 +1663,7 @@ export default function DashboardPage() {
           </article>
         </section>}
 
-        <section className="recordsGrid dashboardSection" id="purchasing">
+        <section className={sectionClass('recordsGrid', 'purchasing')} id="purchasing">
           <article className="panel widePanel">
             <div className="panelHeading"><div><p className="eyebrow">Stock control</p><h2>Inventory records</h2></div><span className="badge">{inventoryItems.length} items</span></div>
             <div className="tableWrap"><table className="dataTable"><thead><tr><th>Item</th><th>Supplier</th><th>Qty</th><th>Reorder</th><th>Unit cost</th><th>Status</th></tr></thead><tbody>{inventoryItems.map((item) => <tr key={item.id}><td><b>{item.name}</b><small>{item.sku}{item.description ? ` Â· ${item.description}` : ''}</small></td><td>{item.supplier?.name || '-'}</td><td>{item.quantity}</td><td>{item.reorderLevel}</td><td>{currency(item.unitCost)}</td><td><span className={`statusPill ${item.quantity <= item.reorderLevel ? 'overdue' : 'active'}`}>{item.quantity <= item.reorderLevel ? 'reorder' : 'in stock'}</span></td></tr>)}</tbody></table></div>
@@ -1664,13 +1684,13 @@ export default function DashboardPage() {
           </article>}
         </section>
 
-        <section className="panel dashboardSection" id="purchase-orders">
+        <section className={sectionClass('panel', 'purchase-orders')} id="purchase-orders">
           <div className="panelHeading"><div><p className="eyebrow">Purchase orders</p><h2>Supplier order tracker</h2></div><span className="badge">{purchaseOrders.length} orders</span></div>
           <div className="tableWrap"><table className="dataTable"><thead><tr><th>Order</th><th>Supplier</th><th>Total</th><th>Expected</th><th>Status</th><th>Action</th></tr></thead><tbody>{purchaseOrders.map((order) => <tr key={order.id}><td><b>{order.orderNo}</b></td><td>{order.supplier.name}</td><td>{currency(order.total)}</td><td>{order.expectedAt ? new Date(order.expectedAt).toLocaleDateString() : '-'}</td><td><span className={`statusPill ${order.status.toLowerCase()}`}>{labelFromEnum(order.status)}</span></td><td>{canManageBusiness ? <select value={order.status} onChange={(event) => updatePurchaseOrderStatus(order.id, event.target.value as PurchaseOrderStatus)} disabled={saving === order.id}>{purchaseOrderStatuses.map((status) => <option key={status} value={status}>{labelFromEnum(status)}</option>)}</select> : '-'}</td></tr>)}</tbody></table></div>
           {purchaseOrders.length === 0 && <div className="emptyState"><h3>No purchase orders yet</h3><p className="muted">Create purchase orders to track stock you are buying from suppliers.</p></div>}
         </section>
 
-        <section className="recordsGrid dashboardSection" id="quotes">
+        <section className={sectionClass('recordsGrid', 'quotes')} id="quotes">
           {canManageBusiness && <article className="panel">
             <div className="panelHeading"><div><p className="eyebrow">Quotes</p><h2>Create estimate</h2></div><span className="badge">{openQuotes.length} open</span></div>
             <form className="companyForm" onSubmit={createQuote}>
@@ -1692,7 +1712,7 @@ export default function DashboardPage() {
           </article>
         </section>
 
-        <section className="recordsGrid dashboardSection" id="invoices">
+        <section className={sectionClass('recordsGrid', 'invoices')} id="invoices">
           <span className="dashboardAnchor" id="payments" />
           <article className="panel widePanel">
             <div className="panelHeading"><div><p className="eyebrow">Invoices</p><h2>Billing pipeline</h2></div><span className="badge">{currency(summary?.metrics.outstanding)} open</span></div>
@@ -1710,7 +1730,7 @@ export default function DashboardPage() {
           </article>}
         </section>
 
-        <section className="recordsGrid dashboardSection" id="expenses">
+        <section className={sectionClass('recordsGrid', 'expenses')} id="expenses">
           {canManageBusiness && <article className="panel">
             <div className="panelHeading"><div><p className="eyebrow">Expenses</p><h2>Record expense</h2></div><span className="badge">{currency(summary?.metrics.expenses)} spent</span></div>
             <form className="companyForm" onSubmit={saveExpense}>
@@ -1731,7 +1751,7 @@ export default function DashboardPage() {
           </article>
         </section>
 
-        <section className="panel dashboardSection" id="reports">
+        <section className={sectionClass('panel', 'reports')} id="reports">
           <div className="panelHeading">
             <div><p className="eyebrow">Reports</p><h2>Business reports and exports</h2></div>
             <span className="badge">Alpha 0.7</span>
