@@ -1202,7 +1202,7 @@ export default function DashboardPage() {
 
         {error && <p className="error">{error}</p>}
         {notice && <p className="success">{notice}</p>}
-        {billing && <p className={billing.access.level === 'block' ? 'error' : billing.access.level === 'warn' ? 'success' : 'muted'}>
+        {billing && billing.access.level !== 'ok' && <p className={billing.access.level === 'block' ? 'error' : 'success'}>
           Billing: {billing.access.message}
         </p>}
         {billingBlocked && isOwnerOrAdmin && <p className="muted">Billing remains available so an owner/admin can restore access.</p>}
