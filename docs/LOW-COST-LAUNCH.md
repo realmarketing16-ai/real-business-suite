@@ -45,6 +45,10 @@ DATABASE_URL=<Neon connection string>
 JWT_SECRET=<Render can generate this>
 WEB_URL=<your Vercel web URL, after Step 3>
 EMAIL_DRY_RUN=true
+BILLING_CURRENCY=PGK
+BILLING_STARTER_PRICE_MONTHLY=99
+BILLING_BUSINESS_PRICE_MONTHLY=249
+BILLING_PRO_PRICE_MONTHLY=499
 ```
 
 If you later add a custom domain or Vercel preview URL, `WEB_URL` can contain multiple comma-separated allowed origins, for example `https://real-business-suite.vercel.app,https://app.yourdomain.com`. The first URL is used for password reset links and Stripe return links.

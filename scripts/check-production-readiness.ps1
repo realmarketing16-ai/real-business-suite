@@ -110,6 +110,24 @@ Add-Check "DATABASE_URL" (Has-Value $env:DATABASE_URL) "Production database conn
 Add-Check "JWT_SECRET" (Is-Strong-Secret $env:JWT_SECRET) "Use at least 32 random characters and avoid placeholder words."
 Add-Check "WEB_URL" (Are-Https-Urls $env:WEB_URL) "Production WEB_URL should be one or more comma-separated https:// URLs."
 Add-Check "NEXT_PUBLIC_API_URL" (Is-Https-Url $env:NEXT_PUBLIC_API_URL) "Production web app should call an https:// API URL ending in /api."
+$billingCurrency = if (Has-Value $env:BILLING_CURRENCY) { $env:BILLING_CURRENCY } else { "PGK" }
+Add-Check "Billing currency" ($billingCurrency -match "^[A-Za-z]{3}$") "Billing currency should be a 3-letter code such as PGK."
+
+$defaultPrices = @{
+  BILLING_STARTER_PRICE_MONTHLY = "99"
+  BILLING_BUSINESS_PRICE_MONTHLY = "249"
+  BILLING_PRO_PRICE_MONTHLY = "499"
+}
+
+foreach ($priceKey in @("BILLING_STARTER_PRICE_MONTHLY", "BILLING_BUSINESS_PRICE_MONTHLY", "BILLING_PRO_PRICE_MONTHLY")) {
+  $priceValue = [Environment]::GetEnvironmentVariable($priceKey, "Process")
+  if (-not (Has-Value $priceValue)) {
+    $priceValue = $defaultPrices[$priceKey]
+  }
+  $parsedPrice = 0.0
+  $priceOk = (Has-Value $priceValue) -and [double]::TryParse($priceValue, [ref]$parsedPrice) -and $parsedPrice -ge 0
+  Add-Check $priceKey $priceOk "$priceKey should be a non-negative monthly amount."
+}
 
 $emailDryRunValue = ""
 if ($env:EMAIL_DRY_RUN) {
