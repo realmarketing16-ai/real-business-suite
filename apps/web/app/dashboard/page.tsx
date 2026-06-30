@@ -3,6 +3,7 @@
 import { API_URL, ApiError, api, authHeaders, clearSession, getStoredUser } from '@/lib/api';
 import { useRouter } from 'next/navigation';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { BrandMark } from '../brand-mark';
 
 type Company = { id: string; name: string; industry?: string | null; email?: string | null; phone?: string | null; address?: string | null };
 type CompanyForm = { name: string; industry: string; email: string; phone: string; address: string };
@@ -1124,7 +1125,7 @@ export default function DashboardPage() {
   return (
     <main className="appShell">
       <aside className="sidebar">
-        <div className="brand light"><span>R</span> RBS</div>
+        <BrandMark tone="light" compact />
         <nav>
           {navItems.map((item) => <a className="active" key={item}>{item}</a>)}
         </nav>

@@ -5,6 +5,10 @@ import './globals.css';
 export const metadata: Metadata = {
   title: brand.name,
   description: brand.tagline,
+  icons: {
+    icon: brand.iconPath,
+    apple: brand.iconPath,
+  },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
