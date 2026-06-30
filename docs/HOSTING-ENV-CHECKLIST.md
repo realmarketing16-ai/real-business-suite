@@ -70,6 +70,17 @@ https://your-render-api-url.onrender.com/api/health
 
 Create the Vercel project from the same GitHub repository. The root `vercel.json` already points Vercel at the Next.js web app.
 
+Use these Vercel project settings:
+
+```text
+Framework Preset=Next.js
+Root Directory=apps/web
+Build Command=pnpm build
+Install Command=pnpm install --frozen-lockfile
+Output Directory=.next
+Include files outside the root directory in the Build Step=Enabled
+```
+
 Paste these into the Vercel project environment variables:
 
 ```text
