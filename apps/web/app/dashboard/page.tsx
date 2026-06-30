@@ -120,8 +120,6 @@ type TeamMemberForm = { firstName: string; lastName: string; email: string; pass
 type AuditLog = { id: string; action: string; entityType: string; entityId?: string | null; description: string; actorName: string; createdAt: string };
 type EmailStatus = 'QUEUED' | 'SENT' | 'FAILED';
 type EmailMessage = { id: string; to: string; subject: string; bodyPreview: string; status: EmailStatus; relatedType?: string | null; createdAt: string };
-type ReadinessCheck = { key: string; label: string; status: 'PASS' | 'WARN' | 'FAIL'; detail: string; hidden?: boolean };
-type ReadinessStatus = { status: 'READY' | 'NEEDS_REVIEW' | 'NOT_READY'; summary: { pass: number; warn: number; fail: number }; checkedAt: string; checks: ReadinessCheck[] };
 type SubscriptionPlan = 'FREE' | 'STARTER' | 'BUSINESS' | 'PRO';
 type SubscriptionStatus = 'TRIALING' | 'ACTIVE' | 'PAST_DUE' | 'CANCELED';
 type BillingStatus = {
@@ -218,7 +216,6 @@ export default function DashboardPage() {
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [emailMessages, setEmailMessages] = useState<EmailMessage[]>([]);
-  const [readiness, setReadiness] = useState<ReadinessStatus | null>(null);
   const [billing, setBilling] = useState<BillingStatus | null>(null);
   const [reports, setReports] = useState<ReportSummary | null>(null);
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
@@ -283,59 +280,20 @@ export default function DashboardPage() {
     ...(isOwnerOrAdmin ? [{ label: 'Billing', id: 'billing' }, { label: 'Audit', id: 'audit' }] : []),
   ], [canManageBusiness, isOwnerOrAdmin]);
   const totalTasks = summary?.metrics.tasks ?? 0;
-  const onboardingItems = [
+  const workspaceItems = [
     { label: 'Complete company profile', done: Boolean(company?.email && company?.phone && company?.industry), detail: company?.email && company?.phone ? 'Company contact details are ready.' : 'Add company email, phone, and industry.' },
-    { label: 'Invite or confirm team access', done: teamMembers.length > 1 || employees.length > 0, detail: teamMembers.length > 1 ? `${teamMembers.length} users can access the suite.` : 'Add team users or employee records.' },
+    { label: 'Add team or employee records', done: teamMembers.length > 1 || employees.length > 0, detail: teamMembers.length > 1 ? `${teamMembers.length} users can access the suite.` : 'Add team users or employee records.' },
     { label: 'Add customers or leads', done: customers.length > 0, detail: customers.length > 0 ? `${customers.length} customer records are active.` : 'Create your first customer or lead.' },
     { label: 'Set up products/services', done: activeProducts.length > 0, detail: activeProducts.length > 0 ? `${activeProducts.length} active catalog items are ready.` : 'Add services, products, or packages.' },
     { label: 'Create a project/task workflow', done: projects.length > 0 && totalTasks > 0, detail: projects.length > 0 ? `${projects.length} projects and ${totalTasks} tasks are tracked.` : 'Create a project and assign tasks.' },
-    { label: 'Start billing and finance tracking', done: invoices.length > 0 || expenses.length > 0, detail: invoices.length > 0 || expenses.length > 0 ? `${invoices.length} invoices and ${expenses.length} expenses are recorded.` : 'Create an invoice or record an expense.' },
-    { label: 'Confirm subscription plan', done: Boolean(billing?.subscription), detail: billing ? `${labelFromEnum(billing.subscription.plan)} plan is ${labelFromEnum(billing.subscription.status)}.` : isOwnerOrAdmin ? 'Open Billing and confirm the launch plan.' : 'Ask an owner/admin to confirm billing.' },
-    { label: 'Review launch readiness', done: readiness?.status === 'READY', detail: readiness ? `Readiness status: ${labelFromEnum(readiness.status)}.` : isOwnerOrAdmin ? 'Run through the production self-check.' : 'Ask an owner/admin to review readiness.' },
+    { label: 'Start finance tracking', done: invoices.length > 0 || expenses.length > 0, detail: invoices.length > 0 || expenses.length > 0 ? `${invoices.length} invoices and ${expenses.length} expenses are recorded.` : 'Create an invoice or record an expense.' },
   ];
-  const completedOnboardingItems = onboardingItems.filter((item) => item.done).length;
-  const onboardingProgress = Math.round((completedOnboardingItems / onboardingItems.length) * 100);
-  const webUrl = typeof window === 'undefined' ? '' : window.location.origin;
-  const apiIsHosted = /^https:\/\/.+/i.test(API_URL) && !API_URL.includes('localhost') && !API_URL.includes('127.0.0.1');
-  const webIsHosted = /^https:\/\/.+/i.test(webUrl) && !webUrl.includes('localhost') && !webUrl.includes('127.0.0.1');
-  const launchEnvironmentItems = [
-    {
-      label: 'Neon database',
-      done: Boolean(readiness?.checks.some((item) => item.key === 'database_url' && item.status === 'PASS')),
-      detail: 'Create free Postgres, then paste DATABASE_URL into Render.',
-    },
-    {
-      label: 'Render API',
-      done: apiIsHosted,
-      detail: apiIsHosted ? API_URL : 'Deploy API, then set NEXT_PUBLIC_API_URL in Vercel.',
-    },
-    {
-      label: 'Vercel web app',
-      done: webIsHosted,
-      detail: webIsHosted ? webUrl : 'Deploy web app, then copy its URL back to Render WEB_URL.',
-    },
-    {
-      label: 'PGK pricing and branding',
-      done: billing?.currency === 'PGK',
-      detail: billing?.currency === 'PGK' ? 'Billing is using PGK plan prices.' : 'Set BILLING_CURRENCY=PGK and NEXT_PUBLIC_CURRENCY=PGK.',
-    },
-    {
-      label: 'Email mode',
-      done: Boolean(readiness?.checks.some((item) => item.key === 'email' && item.status !== 'FAIL')),
-      detail: 'Keep EMAIL_DRY_RUN=true for the free pilot; add Resend only when ready.',
-    },
-    {
-      label: 'Payments',
-      done: Boolean(billing?.checkoutReady),
-      detail: billing?.checkoutReady ? 'Stripe checkout keys are detected.' : 'Leave Stripe blank until private pilot testing works.',
-    },
-  ];
-  const completedLaunchEnvironmentItems = launchEnvironmentItems.filter((item) => item.done).length;
-  const launchEnvironmentProgress = Math.round((completedLaunchEnvironmentItems / launchEnvironmentItems.length) * 100);
+  const completedWorkspaceItems = workspaceItems.filter((item) => item.done).length;
+  const workspaceProgress = Math.round((completedWorkspaceItems / workspaceItems.length) * 100);
 
   async function loadDashboard() {
     setError('');
-    const [nextSummary, nextCompany, nextEmployees, nextCustomers, nextDeals, nextProducts, nextPurchasing, nextQuotes, nextInvoices, nextExpenses, nextProjects, nextTeamMembers, nextAuditLogs, nextEmailMessages, nextReadiness, nextBilling, nextReports] = await Promise.all([
+    const [nextSummary, nextCompany, nextEmployees, nextCustomers, nextDeals, nextProducts, nextPurchasing, nextQuotes, nextInvoices, nextExpenses, nextProjects, nextTeamMembers, nextAuditLogs, nextEmailMessages, nextBilling, nextReports] = await Promise.all([
       api<Summary>('/dashboard/summary'),
       api<Company>('/company'),
       api<Employee[]>('/employees'),
@@ -350,7 +308,6 @@ export default function DashboardPage() {
       api<TeamMember[]>('/team'),
       api<AuditLog[]>('/audit-logs').catch(() => []),
       api<EmailMessage[]>('/email/outbox').catch(() => []),
-      api<ReadinessStatus>('/readiness').catch(() => null),
       api<BillingStatus>('/billing').catch(() => null),
       api<ReportSummary>('/reports/summary'),
     ]);
@@ -371,7 +328,6 @@ export default function DashboardPage() {
     setTeamMembers(nextTeamMembers);
     setAuditLogs(nextAuditLogs);
     setEmailMessages(nextEmailMessages);
-    setReadiness(nextReadiness);
     setBilling(nextBilling);
     setReports(nextReports);
     setInvoiceForm((current) => ({
@@ -435,14 +391,13 @@ export default function DashboardPage() {
 
   function isSectionVisible(sectionId: string) {
     const relatedSections: Record<string, string[]> = {
-      overview: ['overview', 'company-summary', 'launch-setup', 'readiness', 'hosting'],
+      overview: ['overview', 'company-summary', 'business-progress'],
       company: ['company-summary', 'settings'],
       products: ['customers'],
       inventory: ['inventory', 'purchasing', 'purchase-orders'],
       purchasing: ['purchasing', 'purchase-orders'],
       projects: ['projects', 'projects-board'],
       payments: ['invoices'],
-      billing: ['billing', 'readiness', 'hosting'],
       audit: ['audit', 'email'],
     };
 
@@ -1297,17 +1252,17 @@ export default function DashboardPage() {
           </article>
         </div>
 
-        <section className={sectionClass('panel', 'launch-setup')}>
+        <section className={sectionClass('panel', 'business-progress')}>
           <div className="panelHeading">
             <div>
-              <p className="eyebrow">Launch setup</p>
-              <h2>{completedOnboardingItems} of {onboardingItems.length} essentials complete</h2>
+              <p className="eyebrow">Business setup</p>
+              <h2>{completedWorkspaceItems} of {workspaceItems.length} workspace items complete</h2>
             </div>
-            <span className="badge">{onboardingProgress}% ready</span>
+            <span className="badge">{workspaceProgress}% complete</span>
           </div>
-          <div className="progress"><span style={{ width: `${onboardingProgress}%` }} /></div>
+          <div className="progress"><span style={{ width: `${workspaceProgress}%` }} /></div>
           <div className="onboardingGrid">
-            {onboardingItems.map((item) => (
+            {workspaceItems.map((item) => (
               <article className={`onboardingItem ${item.done ? 'done' : ''}`} key={item.label}>
                 <span>{item.done ? '✓' : '!'}</span>
                 <div>
@@ -1319,44 +1274,6 @@ export default function DashboardPage() {
           </div>
           {!canManageBusiness && <p className="muted">Your role is focused on viewing records and updating task status. Managers, admins, and owners can complete setup items.</p>}
         </section>
-
-        {isOwnerOrAdmin && <section className={sectionClass('panel', 'readiness')} id="readiness">
-          <div className="panelHeading">
-            <div><p className="eyebrow">Launch readiness</p><h2>Production self-check</h2></div>
-            <span className={`badge ${readiness?.status?.toLowerCase() ?? ''}`}>{readiness ? labelFromEnum(readiness.status) : 'Not checked'}</span>
-          </div>
-          <div className="stats">
-            <article><span>Passed</span><b>{readiness?.summary.pass ?? '-'}</b><small>Healthy checks</small></article>
-            <article><span>Warnings</span><b>{readiness?.summary.warn ?? '-'}</b><small>Needs review</small></article>
-            <article><span>Failures</span><b>{readiness?.summary.fail ?? '-'}</b><small>Launch blockers</small></article>
-          </div>
-          <div className="tableWrap"><table className="dataTable"><thead><tr><th>Check</th><th>Status</th><th>Detail</th></tr></thead><tbody>{(readiness?.checks ?? []).filter((item) => !item.hidden).map((item) => <tr key={item.key}><td><b>{item.label}</b></td><td><span className={`statusPill ${item.status.toLowerCase()}`}>{labelFromEnum(item.status)}</span></td><td>{item.detail}</td></tr>)}</tbody></table></div>
-          {!readiness && <div className="emptyState"><h3>Readiness unavailable</h3><p className="muted">Owners and admins will see production readiness checks here.</p></div>}
-        </section>}
-
-        {isOwnerOrAdmin && <section className={sectionClass('panel', 'hosting')}>
-          <div className="panelHeading">
-            <div><p className="eyebrow">Hosting launch center</p><h2>{completedLaunchEnvironmentItems} of {launchEnvironmentItems.length} hosting steps ready</h2></div>
-            <span className="badge">{launchEnvironmentProgress}% hosted</span>
-          </div>
-          <div className="progress"><span style={{ width: `${launchEnvironmentProgress}%` }} /></div>
-          <div className="launchEnvGrid">
-            {launchEnvironmentItems.map((item) => (
-              <article className={`onboardingItem ${item.done ? 'done' : ''}`} key={item.label}>
-                <span>{item.done ? '✓' : '!'}</span>
-                <div>
-                  <b>{item.label}</b>
-                  <small>{item.detail}</small>
-                </div>
-              </article>
-            ))}
-          </div>
-          <div className="launchCommand">
-            <b>Hosted smoke test</b>
-            <code>pnpm smoke:hosted -- -ApiUrl {apiIsHosted ? API_URL : 'https://your-render-api-url.onrender.com/api'} -WebUrl {webIsHosted ? webUrl : 'https://your-vercel-url.vercel.app'}</code>
-          </div>
-          <p className="muted">Use <code>docs/HOSTING-ENV-CHECKLIST.md</code> for the exact Neon, Render, and Vercel variables. Keep email dry-run and payments off until the private pilot is working.</p>
-        </section>}
 
         {isOwnerOrAdmin && <section className={sectionClass('panel', 'billing')} id="billing">
           <div className="panelHeading">
