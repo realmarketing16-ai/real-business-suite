@@ -3,6 +3,7 @@ import { InvoiceStatus, Prisma } from '@prisma/client';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { AuthenticatedUser, JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ensureManagerOrAbove } from '../auth/roles';
+import { publicBrandName, publicSupportContact } from '../config/brand';
 import { formatMoney } from '../config/money';
 import { EmailService } from '../email/email.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -47,10 +48,12 @@ function formatDate(value: unknown) {
 }
 
 function buildInvoicePdf(invoice: any) {
+  const brandName = publicBrandName();
   const paid = (invoice.payments ?? []).filter((payment: any) => payment.status === 'RECORDED').reduce((sum: number, payment: any) => sum + money(payment.amount), 0);
   const balance = Math.max(money(invoice.total) - paid, 0);
   const lines = [
     { text: invoice.company.name, x: 50, y: 760, size: 20 },
+    { text: `Prepared with ${brandName}`, x: 50, y: 738, size: 9 },
     { text: 'INVOICE', x: 440, y: 760, size: 22 },
     { text: `Invoice #: ${invoice.invoiceNo}`, x: 440, y: 730, size: 11 },
     { text: `Status: ${invoice.status}`, x: 440, y: 714, size: 11 },
@@ -85,13 +88,14 @@ function buildInvoicePdf(invoice: any) {
     { text: `Paid: ${currency(paid)}`, x: 390, y: 108, size: 11 },
     { text: `Balance: ${currency(balance)}`, x: 390, y: 88, size: 13 },
     { text: invoice.notes ? `Notes: ${invoice.notes}` : 'Thank you for your business.', x: 50, y: 110, size: 10 },
+    { text: `${brandName} - business management for growing teams`, x: 50, y: 44, size: 9 },
   );
 
   const textOps = lines
     .filter((line) => line.text)
     .map((line) => `BT /F1 ${line.size} Tf ${line.x} ${line.y} Td (${pdfEscape(line.text)}) Tj ET`)
     .join('\n');
-  const content = `0.8 w 50 595 m 545 595 l S\n${textOps}`;
+  const content = `0.8 w 50 595 m 545 595 l S\n0.4 w 50 58 m 545 58 l S\n${textOps}`;
   const objects = [
     '<< /Type /Catalog /Pages 2 0 R >>',
     '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
@@ -204,7 +208,7 @@ export class InvoicesController {
       companyId: user.companyId,
       to: invoice.customer.email,
       subject: `${invoice.company.name} invoice ${invoice.invoiceNo}`,
-      body: `Hello ${invoice.customer.name},\n\n${invoice.company.name} has prepared invoice ${invoice.invoiceNo} for ${currency(invoice.total)}.\n\nStatus: ${invoice.status.toLowerCase()}\nDue date: ${formatDate(invoice.dueDate)}\n\nPlease contact us if you have any questions.`,
+      body: `Hello ${invoice.customer.name},\n\n${invoice.company.name} has prepared invoice ${invoice.invoiceNo} for ${currency(invoice.total)}.\n\nStatus: ${invoice.status.toLowerCase()}\nDue date: ${formatDate(invoice.dueDate)}\n\nThis message was prepared through ${publicBrandName()}.\n\nFor questions, contact ${publicSupportContact()} or reply to your company contact.`,
       relatedType: 'invoice',
       relatedId: invoice.id,
     });

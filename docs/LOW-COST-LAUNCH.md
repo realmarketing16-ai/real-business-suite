@@ -53,6 +53,8 @@ NEXT_PUBLIC_BRAND_NAME="Real Business Suite"
 NEXT_PUBLIC_SUPPORT_CONTACT=<your support email or phone>
 NEXT_PUBLIC_BRAND_LOGO_PATH=/brand/real-logo.png
 NEXT_PUBLIC_BRAND_ICON_PATH=/brand/real-icon.png
+BRAND_NAME="Real Business Suite"
+SUPPORT_CONTACT=<your support email or phone>
 ```
 
 If you later add a custom domain or Vercel preview URL, `WEB_URL` can contain multiple comma-separated allowed origins, for example `https://real-business-suite.vercel.app,https://app.yourdomain.com`. The first URL is used for password reset links and Stripe return links.
