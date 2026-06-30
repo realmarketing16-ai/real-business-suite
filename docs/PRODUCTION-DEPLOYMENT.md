@@ -10,7 +10,8 @@ API:
 - `JWT_SECRET`: at least 32 random characters; never reuse local/dev values.
 - `NODE_ENV`: set to `production` for public launch.
 - `WEB_URL`: public web app origin, for example `https://app.yourdomain.com`; used for API CORS.
-- `API_PORT`: usually `4000`, unless your host injects a port.
+- `PORT`: usually injected by the hosting provider.
+- `API_PORT`: local/self-hosted fallback when `PORT` is not provided.
 - `EMAIL_DRY_RUN`: set `false` when real email delivery is ready.
 - `RESEND_API_KEY`: required when using Resend delivery.
 - `EMAIL_FROM`: verified sender, for example `Real Business Suite <no-reply@yourdomain.com>`.

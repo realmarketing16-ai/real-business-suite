@@ -41,12 +41,13 @@ Set these Render environment variables:
 
 ```text
 NODE_ENV=production
-API_PORT=4000
 DATABASE_URL=<Neon connection string>
 JWT_SECRET=<Render can generate this>
 WEB_URL=<your Vercel web URL, after Step 3>
 EMAIL_DRY_RUN=true
 ```
+
+Render provides the public service port automatically as `PORT`, so you do not need to set `API_PORT` there.
 
 Leave these blank until you are ready:
 
