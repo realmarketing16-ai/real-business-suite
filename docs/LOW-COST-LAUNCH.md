@@ -13,6 +13,8 @@ Use this order:
 5. Domain: do not buy one yet. Use the free Vercel and Render URLs during the pilot.
 6. Payments: Stripe has no monthly subscription fee, but only connect live billing after the free pilot works.
 
+For the exact variables to paste into each host, use `docs/HOSTING-ENV-CHECKLIST.md`.
+
 ## Step 1: Create the database
 
 Create a free Neon Postgres project and copy the pooled connection string.
@@ -37,7 +39,7 @@ Use these important settings:
 - Start command: already defined in `render.yaml`
 - Health check path: `/api/health`
 
-Set these Render environment variables:
+Set these Render environment variables. The full copy/paste checklist is in `docs/HOSTING-ENV-CHECKLIST.md`:
 
 ```text
 NODE_ENV=production
@@ -92,7 +94,7 @@ Use these settings:
 
 These settings are also captured in the root `vercel.json` file. Keeping the Vercel root at the repository root lets Vercel use the shared `pnpm-lock.yaml` and workspace setup.
 
-Set this Vercel environment variable:
+Set this Vercel environment variable. The full copy/paste checklist is in `docs/HOSTING-ENV-CHECKLIST.md`:
 
 ```text
 NEXT_PUBLIC_API_URL=https://your-render-api-url.onrender.com/api
