@@ -5,6 +5,7 @@ Use this checklist before letting real customers rely on Real Business Suite.
 ## Product readiness
 
 - [ ] Local smoke test passes with `pnpm smoke:local`.
+- [ ] Hosted smoke test passes with `pnpm smoke:hosted -- -ApiUrl https://your-api/api -WebUrl https://your-web`.
 - [ ] Production readiness check passes with `pnpm readiness:prod`.
 - [ ] Company registration/login tested.
 - [ ] Password reset request and reset-token flow tested.
