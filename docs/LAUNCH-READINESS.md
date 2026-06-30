@@ -26,6 +26,7 @@ Use this checklist before letting real customers rely on Real Business Suite.
 ## Security readiness
 
 - [ ] Production `JWT_SECRET` is unique and strong.
+- [ ] Production `JWT_SECRET` generated with `pnpm secret:jwt` or the hosting provider secret generator.
 - [ ] Production database password is unique and strong.
 - [ ] Real `.env` files are not committed.
 - [ ] Owner/admin-only screens are checked.
