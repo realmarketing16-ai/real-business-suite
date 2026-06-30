@@ -47,6 +47,8 @@ WEB_URL=<your Vercel web URL, after Step 3>
 EMAIL_DRY_RUN=true
 ```
 
+If you later add a custom domain or Vercel preview URL, `WEB_URL` can contain multiple comma-separated allowed origins, for example `https://real-business-suite.vercel.app,https://app.yourdomain.com`. The first URL is used for password reset links and Stripe return links.
+
 Render provides the public service port automatically as `PORT`, so you do not need to set `API_PORT` there.
 
 Leave these blank until you are ready:

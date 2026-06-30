@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { AuthenticatedUser, JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ensureOwnerOrAdmin } from '../auth/roles';
+import { parseWebUrls } from '../config/web-url';
 import { PrismaService } from '../prisma/prisma.service';
 
 type ReadinessStatus = 'PASS' | 'WARN' | 'FAIL';
@@ -48,16 +49,18 @@ export class ReadinessController {
     const jwtStrong = jwtSecret.length >= 32 && !jwtSecret.toLowerCase().includes('development') && !jwtSecret.toLowerCase().includes('change-me');
     checks.push(check('jwt', 'JWT secret', jwtStrong ? 'PASS' : 'FAIL', jwtStrong ? 'JWT secret looks production-strength.' : 'Set a unique JWT_SECRET with at least 32 random characters.'));
 
+    const port = this.config.get<string>('PORT', '');
     const apiPort = this.config.get<string>('API_PORT', '4000');
-    checks.push(check('api_port', 'API port', apiPort ? 'PASS' : 'WARN', apiPort ? `API_PORT is set to ${apiPort}.` : 'API_PORT is not set; default behavior will be used.'));
+    checks.push(check('api_port', 'API port', port || apiPort ? 'PASS' : 'WARN', port ? `PORT is provided by the host as ${port}.` : apiPort ? `API_PORT fallback is set to ${apiPort}.` : 'No PORT or API_PORT is set; default behavior will be used.'));
 
     const nodeEnv = this.config.get<string>('NODE_ENV', 'development');
     checks.push(check('node_env', 'Runtime mode', nodeEnv === 'production' ? 'PASS' : 'WARN', nodeEnv === 'production' ? 'API is running in production mode.' : `API is running in ${nodeEnv} mode.`));
 
-    const webUrl = this.config.get<string>('WEB_URL', 'http://localhost:3000');
-    const parsedWebUrl = safeUrl(webUrl);
-    const webUrlProductionReady = Boolean(parsedWebUrl && parsedWebUrl.protocol === 'https:' && parsedWebUrl.hostname !== 'localhost');
-    checks.push(check('web_url', 'Web/CORS origin', webUrlProductionReady ? 'PASS' : 'WARN', parsedWebUrl ? `${webUrl} is the allowed browser origin${webUrlProductionReady ? '.' : '; use an HTTPS production domain before public launch.'}` : 'WEB_URL is not a valid URL.'));
+    const webUrls = parseWebUrls(this.config.get<string>('WEB_URL', 'http://localhost:3000'));
+    const parsedWebUrls = webUrls.map((url) => safeUrl(url));
+    const allWebUrlsValid = parsedWebUrls.every(Boolean);
+    const webUrlProductionReady = allWebUrlsValid && parsedWebUrls.every((url) => url?.protocol === 'https:' && url.hostname !== 'localhost');
+    checks.push(check('web_url', 'Web/CORS origins', webUrlProductionReady ? 'PASS' : 'WARN', allWebUrlsValid ? `${webUrls.join(', ')} allowed as browser origin${webUrls.length === 1 ? '' : 's'}${webUrlProductionReady ? '.' : '; use HTTPS production domains before public launch.'}` : 'WEB_URL must be one URL or a comma-separated list of valid URLs.'));
 
     const databaseUrl = this.config.get<string>('DATABASE_URL', '');
     const parsedDatabaseUrl = safeUrl(databaseUrl);

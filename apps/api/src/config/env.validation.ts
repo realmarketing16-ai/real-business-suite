@@ -1,23 +1,38 @@
 type Env = Record<string, string | undefined>;
 
+function parseList(value: string) {
+  return value
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
 function requireValue(env: Env, key: string, errors: string[]) {
   if (!env[key]?.trim()) errors.push(`${key} is required.`);
 }
 
-function requireUrl(env: Env, key: string, errors: string[], options: { requireHttps?: boolean } = {}) {
+function requireUrlList(env: Env, key: string, errors: string[], options: { requireHttps?: boolean } = {}) {
   const value = env[key]?.trim();
   if (!value) {
     errors.push(`${key} is required.`);
     return;
   }
 
-  try {
-    const url = new URL(value);
-    if (options.requireHttps && url.protocol !== 'https:') {
-      errors.push(`${key} must use https:// in production.`);
+  const urls = parseList(value);
+  if (urls.length === 0) {
+    errors.push(`${key} must include at least one URL.`);
+    return;
+  }
+
+  for (const urlValue of urls) {
+    try {
+      const url = new URL(urlValue);
+      if (options.requireHttps && url.protocol !== 'https:') {
+        errors.push(`${key} value ${urlValue} must use https:// in production.`);
+      }
+    } catch {
+      errors.push(`${key} value ${urlValue} must be a valid URL.`);
     }
-  } catch {
-    errors.push(`${key} must be a valid URL.`);
   }
 }
 
@@ -37,7 +52,7 @@ export function validateEnv(env: Env) {
   const jwtSecret = env.JWT_SECRET ?? '';
   if (isProduction) {
     if (isWeakSecret(jwtSecret)) errors.push('JWT_SECRET must be at least 32 random characters and cannot use development placeholders.');
-    requireUrl(env, 'WEB_URL', errors, { requireHttps: true });
+    requireUrlList(env, 'WEB_URL', errors, { requireHttps: true });
 
     if (!emailDryRun) {
       requireValue(env, 'RESEND_API_KEY', errors);
