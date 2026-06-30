@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { FormEvent, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api, saveSession, Session } from '@/lib/api';
+import { brand } from '@/lib/brand';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -29,8 +30,8 @@ export default function RegisterPage() {
   return (
     <main className="authPage">
       <section className="authBrand">
-        <div className="brand light"><span>R</span> Real Business Suite</div>
-        <blockquote>One login for your people, operations and growth.</blockquote>
+        <div className="brand light"><span>{brand.initial}</span> {brand.name}</div>
+        <blockquote>{brand.tagline}</blockquote>
       </section>
       <section className="authPanel">
         <form className="card wide" onSubmit={submit}>

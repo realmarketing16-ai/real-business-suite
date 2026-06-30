@@ -1,11 +1,12 @@
 import { LegalPage } from '../legal-content';
+import { brand } from '@/lib/brand';
 
 export default function SupportPage() {
   return (
     <LegalPage
       eyebrow="Support"
       title="Support and launch help"
-      description="Where users should go when they need help running or launching Real Business Suite."
+      description={`Where users should go when they need help running or launching ${brand.name}.`}
     >
       <h2>Before launch</h2>
       <ul>
@@ -25,7 +26,7 @@ export default function SupportPage() {
       </ul>
 
       <h2>Recommended support contact</h2>
-      <p>Before public launch, replace this section with your real support email, phone number, or helpdesk link. For now, use your internal administrator or project owner as the first support contact.</p>
+      <p>Before public launch, set `NEXT_PUBLIC_SUPPORT_CONTACT` to your real support email, phone number, or helpdesk link. For now, use {brand.supportContact} as the first support contact.</p>
 
       <h2>Emergency rollback</h2>
       <p>If a production release causes a major issue, pause new user activity, restore the last known-good deployment, verify database state, and review audit logs before reopening access.</p>

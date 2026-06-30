@@ -1,14 +1,15 @@
 import { LegalPage } from '../legal-content';
+import { brand } from '@/lib/brand';
 
 export default function TermsPage() {
   return (
     <LegalPage
       eyebrow="Terms"
       title="Terms of Service"
-      description="The basic rules for using Real Business Suite responsibly."
+      description={`The basic rules for using ${brand.name} responsibly.`}
     >
       <h2>Use of the platform</h2>
-      <p>Real Business Suite is provided to help businesses manage operations, customers, employees, invoices, projects, inventory, and reports. You are responsible for the accuracy of the information entered into your company account.</p>
+      <p>{brand.name} is provided to help businesses manage operations, customers, employees, invoices, projects, inventory, and reports. You are responsible for the accuracy of the information entered into your company account.</p>
 
       <h2>Accounts and roles</h2>
       <p>The first registered user becomes the company owner. Owners and admins are responsible for inviting users, assigning roles, removing access when needed, and keeping login credentials secure.</p>

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { FormEvent, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api, saveSession, Session } from '@/lib/api';
+import { brand } from '@/lib/brand';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -29,8 +30,8 @@ export default function LoginPage() {
   return (
     <main className="authPage">
       <section className="authBrand">
-        <div className="brand light"><span>R</span> Real Business Suite</div>
-        <blockquote>Built to help PNG businesses grow with clarity.</blockquote>
+        <div className="brand light"><span>{brand.initial}</span> {brand.name}</div>
+        <blockquote>{brand.authLine}</blockquote>
       </section>
       <section className="authPanel">
         <form className="card" onSubmit={submit}>
@@ -42,7 +43,7 @@ export default function LoginPage() {
           <label>Password<input name="password" type="password" minLength={8} required placeholder="At least 8 characters" /></label>
           <button className="button" disabled={loading}>{loading ? 'Signing in...' : 'Sign in'}</button>
           <p className="center muted"><Link href="/forgot-password">Forgot your password?</Link></p>
-          <p className="center muted">New to Real Business Suite? <Link href="/register">Create an account</Link></p>
+          <p className="center muted">New to {brand.name}? <Link href="/register">Create an account</Link></p>
           <p className="legalLinks"><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><Link href="/support">Support</Link></p>
         </form>
       </section>

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { FormEvent, Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { api, saveSession, Session } from '@/lib/api';
+import { brand } from '@/lib/brand';
 
 function ResetPasswordForm() {
   const router = useRouter();
@@ -47,7 +48,7 @@ export default function ResetPasswordPage() {
   return (
     <main className="authPage">
       <section className="authBrand">
-        <div className="brand light"><span>R</span> Real Business Suite</div>
+        <div className="brand light"><span>{brand.initial}</span> {brand.name}</div>
         <blockquote>Choose a strong password and get back to work.</blockquote>
       </section>
       <section className="authPanel">

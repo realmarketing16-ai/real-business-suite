@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { ReactNode } from 'react';
+import { brand } from '@/lib/brand';
 
 type LegalPageProps = {
   eyebrow: string;
@@ -12,7 +13,7 @@ export function LegalPage({ eyebrow, title, description, children }: LegalPagePr
   return (
     <main className="legalPage">
       <nav className="nav shell">
-        <Link className="brand" href="/"><span>R</span> Real Business Suite</Link>
+        <Link className="brand" href="/"><span>{brand.initial}</span> {brand.name}</Link>
         <div className="navActions"><Link href="/support">Support</Link><Link href="/login">Sign in</Link><Link className="button small" href="/register">Start free</Link></div>
       </nav>
       <section className="legalHero shell">
@@ -24,7 +25,7 @@ export function LegalPage({ eyebrow, title, description, children }: LegalPagePr
         {children}
       </section>
       <footer className="publicFooter shell">
-        <span>© {new Date().getFullYear()} Real Business Suite</span>
+        <span>© {new Date().getFullYear()} {brand.name}</span>
         <nav><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><Link href="/support">Support</Link></nav>
       </footer>
     </main>
