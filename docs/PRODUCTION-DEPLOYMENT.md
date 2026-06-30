@@ -53,6 +53,7 @@ Database container/local compose:
    - Local smoke test before paid hosting: `pnpm smoke:local`
    - Hosted smoke test after deploy: `pnpm smoke:hosted -- -ApiUrl https://your-api/api -WebUrl https://your-web`
    - Production env/deploy readiness check: `pnpm readiness:prod`
+   - Deployment config check: `pnpm config:check`
    - Login/register flow
    - Password reset request and reset-token flow
    - Dashboard load
