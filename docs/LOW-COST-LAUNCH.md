@@ -73,9 +73,12 @@ Create a Vercel project from this GitHub repository.
 Use these settings:
 
 - Framework: Next.js
-- Root directory: `apps/web`
-- Build command: `pnpm build`
+- Root directory: repository root
+- Build command: `pnpm --filter @rbs/web build`
 - Install command: `pnpm install --frozen-lockfile`
+- Output directory: `apps/web/.next`
+
+These settings are also captured in the root `vercel.json` file. Keeping the Vercel root at the repository root lets Vercel use the shared `pnpm-lock.yaml` and workspace setup.
 
 Set this Vercel environment variable:
 

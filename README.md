@@ -10,6 +10,7 @@ Real Business Suite is a multi-tenant business platform built for Papua New Guin
 - `docker-compose.yml` — local PostgreSQL service
 - `.github/workflows/ci.yml` — build validation
 - `render.yaml` — Render API deployment starter config
+- `vercel.json` — Vercel web deployment starter config
 - `docs/LOW-COST-LAUNCH.md` — free/low-cost pilot launch plan
 - `docs/PRODUCTION-DEPLOYMENT.md` — production deployment checklist
 - `docs/LAUNCH-READINESS.md` — launch readiness checklist
