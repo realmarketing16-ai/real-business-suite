@@ -101,6 +101,7 @@ Then redeploy the Render API so CORS allows the web app.
 
 Before spending more money, test this on the free URLs:
 
+- Run `pnpm readiness:prod` locally after setting the production URLs in `.env`.
 - Register the first owner account.
 - Log in and open the dashboard.
 - Add company settings.
