@@ -9,6 +9,8 @@ Real Business Suite is a multi-tenant business platform built for Papua New Guin
 - `apps/api/prisma` — PostgreSQL data model and migrations
 - `docker-compose.yml` — local PostgreSQL service
 - `.github/workflows/ci.yml` — build validation
+- `render.yaml` — Render API deployment starter config
+- `docs/LOW-COST-LAUNCH.md` — free/low-cost pilot launch plan
 - `docs/PRODUCTION-DEPLOYMENT.md` — production deployment checklist
 - `docs/LAUNCH-READINESS.md` — launch readiness checklist
 - `scripts/backup-db.ps1` and `scripts/restore-db.ps1` — PostgreSQL backup/restore helpers
@@ -29,11 +31,12 @@ The API is served at `http://localhost:4000/api`; health status is available at 
 
 Before launch:
 
-1. Set strong production environment variables from `.env.example`.
-2. Run `pnpm db:deploy` against the production database.
-3. Configure email delivery with `EMAIL_DRY_RUN=false`, `RESEND_API_KEY`, and `EMAIL_FROM`.
-4. Configure daily database backups and test restore.
-5. Complete `docs/LAUNCH-READINESS.md`.
+1. For the lowest-cost private pilot, follow `docs/LOW-COST-LAUNCH.md` first.
+2. Set strong production environment variables from `.env.example`.
+3. Run `pnpm db:deploy` against the production database.
+4. Configure email delivery with `EMAIL_DRY_RUN=false`, `RESEND_API_KEY`, and `EMAIL_FROM`.
+5. Configure daily database backups and test restore.
+6. Complete `docs/LAUNCH-READINESS.md`.
 
 ## Current alpha milestones
 
