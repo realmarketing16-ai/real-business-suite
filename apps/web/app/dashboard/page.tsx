@@ -1125,7 +1125,7 @@ export default function DashboardPage() {
   return (
     <main className="appShell">
       <aside className="sidebar">
-        <BrandMark tone="light" compact />
+        <BrandMark tone="light" compact className="sidebarLogo" />
         <nav>
           {navItems.map((item) => <a className="active" key={item}>{item}</a>)}
         </nav>
