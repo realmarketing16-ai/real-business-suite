@@ -12,6 +12,7 @@ Real Business Suite is a multi-tenant business platform built for Papua New Guin
 - `render.yaml` — Render API deployment starter config
 - `vercel.json` — Vercel web deployment starter config
 - `docs/LOW-COST-LAUNCH.md` — free/low-cost pilot launch plan
+- `docs/HOSTING-ENV-CHECKLIST.md` — exact Neon, Render, and Vercel environment variables
 - `docs/BRANDING.md` — public brand and theme customization guide
 - `docs/PRODUCTION-DEPLOYMENT.md` — production deployment checklist
 - `docs/LAUNCH-READINESS.md` — launch readiness checklist
@@ -34,11 +35,12 @@ The API is served at `http://localhost:4000/api`; health status is available at 
 Before launch:
 
 1. For the lowest-cost private pilot, follow `docs/LOW-COST-LAUNCH.md` first.
-2. Set strong production environment variables from `.env.example`.
-3. Run `pnpm db:deploy` against the production database.
-4. Configure email delivery with `EMAIL_DRY_RUN=false`, `RESEND_API_KEY`, and `EMAIL_FROM`.
-5. Configure daily database backups and test restore.
-6. Complete `docs/LAUNCH-READINESS.md`.
+2. Copy the exact hosted environment variables from `docs/HOSTING-ENV-CHECKLIST.md`.
+3. Set strong production environment variables from `.env.example`.
+4. Run `pnpm db:deploy` against the production database.
+5. Configure email delivery with `EMAIL_DRY_RUN=false`, `RESEND_API_KEY`, and `EMAIL_FROM`.
+6. Configure daily database backups and test restore.
+7. Complete `docs/LAUNCH-READINESS.md`.
 
 ## Current alpha milestones
 
