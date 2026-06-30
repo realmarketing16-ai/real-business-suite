@@ -8,6 +8,7 @@ Use this checklist before letting real customers rely on Real Business Suite.
 - [ ] Hosted smoke test passes with `pnpm smoke:hosted -- -ApiUrl https://your-api/api -WebUrl https://your-web`.
 - [ ] Production readiness check passes with `pnpm readiness:prod`.
 - [ ] Deployment config check passes with `pnpm config:check`.
+- [ ] Public pricing page loads and shows the intended PGK packages.
 - [ ] Company registration/login tested.
 - [ ] Password reset request and reset-token flow tested.
 - [ ] Company profile can be edited.
@@ -31,6 +32,7 @@ Use this checklist before letting real customers rely on Real Business Suite.
 - [ ] Team invite emails do not contain passwords.
 - [ ] Email sender domain is verified with provider.
 - [ ] Browser and API use HTTPS in production.
+- [ ] Hosted API URL and web URL match the values pasted into Render/Vercel.
 - [ ] Auth rate limits tested for login and password reset endpoints.
 - [ ] Auth audit events reviewed for registration, login, and password reset activity.
 - [ ] Billing plan/status reviewed and Stripe keys configured before taking customer payments.
@@ -54,6 +56,7 @@ Use this checklist before letting real customers rely on Real Business Suite.
 - [ ] Error logs are accessible.
 - [ ] Email failures are reviewed from the outbox.
 - [ ] Support contact/process is defined.
+- [ ] Public support contact, privacy policy, and terms are reviewed for the real company.
 - [ ] Rollback process is documented.
 
 ## Go/no-go

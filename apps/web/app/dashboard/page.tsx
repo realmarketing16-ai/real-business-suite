@@ -282,7 +282,7 @@ export default function DashboardPage() {
   const launchEnvironmentItems = [
     {
       label: 'Neon database',
-      done: Boolean(readiness?.checks.some((item) => item.key === 'database' && item.status === 'PASS')),
+      done: Boolean(readiness?.checks.some((item) => item.key === 'database_url' && item.status === 'PASS')),
       detail: 'Create free Postgres, then paste DATABASE_URL into Render.',
     },
     {

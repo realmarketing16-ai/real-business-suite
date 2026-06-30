@@ -40,7 +40,7 @@ function ResetPasswordForm() {
       <label>New password<input name="password" type="password" minLength={8} required placeholder="At least 8 characters" disabled={!token} /></label>
       <button className="button" disabled={loading || !token}>{loading ? 'Resetting...' : 'Reset password'}</button>
       <p className="center muted"><Link href="/forgot-password">Request a new link</Link></p>
-      <p className="legalLinks"><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><Link href="/support">Support</Link></p>
+      <p className="legalLinks"><Link href="/pricing">Pricing</Link><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><Link href="/support">Support</Link></p>
     </form>
   );
 }
