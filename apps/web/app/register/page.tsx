@@ -49,7 +49,7 @@ export default function RegisterPage() {
           <label>Password<input name="password" type="password" minLength={8} required /></label>
           <button className="button" disabled={loading}>{loading ? 'Creating company...' : 'Create company'}</button>
           <p className="center muted">Already registered? <Link href="/login">Sign in</Link></p>
-          <p className="legalLinks"><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><Link href="/support">Support</Link></p>
+          <p className="legalLinks"><Link href="/pricing">Pricing</Link><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><Link href="/support">Support</Link></p>
         </form>
       </section>
     </main>

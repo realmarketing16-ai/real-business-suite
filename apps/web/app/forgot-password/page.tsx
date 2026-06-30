@@ -43,7 +43,7 @@ export default function ForgotPasswordPage() {
           <label>Email<input name="email" type="email" required placeholder="you@company.com" /></label>
           <button className="button" disabled={loading}>{loading ? 'Sending...' : 'Send reset link'}</button>
           <p className="center muted"><Link href="/login">Back to sign in</Link></p>
-          <p className="legalLinks"><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><Link href="/support">Support</Link></p>
+          <p className="legalLinks"><Link href="/pricing">Pricing</Link><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><Link href="/support">Support</Link></p>
         </form>
       </section>
     </main>
