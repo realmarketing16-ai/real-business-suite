@@ -15,12 +15,17 @@ API:
 - `EMAIL_DRY_RUN`: set `false` when real email delivery is ready.
 - `RESEND_API_KEY`: required when using Resend delivery.
 - `EMAIL_FROM`: verified sender, for example `Real Business Suite <no-reply@yourdomain.com>`.
+- `BILLING_CURRENCY`: billing/payment currency, default `PGK`.
+- `BILLING_CURRENCY_LOCALE`: display locale for billing, default `en-PG`.
+- `BILLING_STARTER_PRICE_MONTHLY`, `BILLING_BUSINESS_PRICE_MONTHLY`, `BILLING_PRO_PRICE_MONTHLY`: monthly package prices in the billing currency.
 - `STRIPE_SECRET_KEY`: required before charging customers online.
 - `STRIPE_WEBHOOK_SECRET`: required before trusting subscription payment events.
 
 Web:
 
 - `NEXT_PUBLIC_API_URL`: public API URL, ending in `/api`.
+- `NEXT_PUBLIC_CURRENCY`: display currency, default `PGK`.
+- `NEXT_PUBLIC_CURRENCY_LOCALE`: display locale, default `en-PG`.
 
 Database container/local compose:
 
@@ -120,6 +125,8 @@ Registration, successful login, password-reset request, and completed password-r
 ## Billing and subscriptions
 
 New companies start on the `FREE` plan so owners can test locally or run a private pilot without paying for Stripe or production services first. Owners/admins can view and change the tracked plan from the dashboard Billing section.
+
+Default paid package prices are PGK 99/month for Starter, PGK 249/month for Business, and PGK 499/month for Pro. Override these with `BILLING_STARTER_PRICE_MONTHLY`, `BILLING_BUSINESS_PRICE_MONTHLY`, and `BILLING_PRO_PRICE_MONTHLY` before public launch.
 
 The app creates Stripe Checkout sessions from the dashboard Billing section and listens for Stripe subscription events at:
 

@@ -132,6 +132,8 @@ type BillingStatus = {
     currentPeriodEndsAt?: string | null;
   };
   access: { canUseSuite: boolean; level: 'ok' | 'warn' | 'block'; message: string };
+  currency: string;
+  currencyLocale: string;
   plans: { plan: SubscriptionPlan; priceMonthly: number; features: string[] }[];
   checkoutReady: boolean;
 };
@@ -173,8 +175,11 @@ function cleanText(value: string) {
   return value.trim() || undefined;
 }
 
-function currency(value?: number) {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value ?? 0);
+const DEFAULT_CURRENCY = process.env.NEXT_PUBLIC_CURRENCY || 'PGK';
+const DEFAULT_CURRENCY_LOCALE = process.env.NEXT_PUBLIC_CURRENCY_LOCALE || 'en-PG';
+
+function currency(value?: number, code = DEFAULT_CURRENCY, locale = DEFAULT_CURRENCY_LOCALE) {
+  return new Intl.NumberFormat(locale, { style: 'currency', currency: code }).format(value ?? 0);
 }
 
 function initials(firstName?: string, lastName?: string) {
@@ -1244,7 +1249,7 @@ export default function DashboardPage() {
                 <div className="panelHeading">
                   <div>
                     <p className="eyebrow">{labelFromEnum(plan.plan)}</p>
-                    <h2>{currency(plan.priceMonthly)} / month</h2>
+                    <h2>{currency(plan.priceMonthly, billing?.currency, billing?.currencyLocale)} / month</h2>
                   </div>
                   {billing?.subscription.plan === plan.plan && <span className="badge">Current</span>}
                 </div>

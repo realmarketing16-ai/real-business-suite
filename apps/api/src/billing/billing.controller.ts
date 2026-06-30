@@ -5,6 +5,7 @@ import { IsIn } from 'class-validator';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { AuthenticatedUser, JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ensureOwnerOrAdmin } from '../auth/roles';
+import { billingCurrency, billingCurrencyLocale, billingPrice } from '../config/money';
 import { primaryWebUrl } from '../config/web-url';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -42,13 +43,6 @@ type StripeSubscription = {
   metadata?: { companyId?: string; plan?: SubscriptionPlan };
 };
 
-const planPrices: Record<SubscriptionPlan, number> = {
-  FREE: 0,
-  STARTER: 29,
-  BUSINESS: 79,
-  PRO: 149,
-};
-
 const planFeatures: Record<SubscriptionPlan, string[]> = {
   FREE: ['Local testing', 'Company setup', 'Core dashboard preview', 'Manual upgrade path'],
   STARTER: ['Core CRM', 'Invoices and quotes', 'Reports exports', 'Email outbox'],
@@ -74,9 +68,11 @@ export class BillingController {
     return {
       subscription,
       access: this.subscriptionAccess(subscription),
-      plans: (Object.keys(planPrices) as SubscriptionPlan[]).map((plan) => ({
+      currency: billingCurrency(),
+      currencyLocale: billingCurrencyLocale(),
+      plans: (['FREE', 'STARTER', 'BUSINESS', 'PRO'] as SubscriptionPlan[]).map((plan) => ({
         plan,
-        priceMonthly: planPrices[plan],
+        priceMonthly: billingPrice(plan),
         features: planFeatures[plan],
       })),
       checkoutReady: Boolean(process.env.STRIPE_SECRET_KEY && process.env.STRIPE_WEBHOOK_SECRET),
@@ -253,8 +249,8 @@ export class BillingController {
     params.set('subscription_data[metadata][companyId]', input.companyId);
     params.set('subscription_data[metadata][plan]', input.plan);
     params.set('line_items[0][quantity]', '1');
-    params.set('line_items[0][price_data][currency]', 'usd');
-    params.set('line_items[0][price_data][unit_amount]', String(planPrices[input.plan] * 100));
+    params.set('line_items[0][price_data][currency]', billingCurrency().toLowerCase());
+    params.set('line_items[0][price_data][unit_amount]', String(Math.round(billingPrice(input.plan) * 100)));
     params.set('line_items[0][price_data][recurring][interval]', 'month');
     params.set('line_items[0][price_data][product_data][name]', `Real Business Suite ${this.planLabel(input.plan)}`);
     params.set('line_items[0][price_data][product_data][metadata][plan]', input.plan);

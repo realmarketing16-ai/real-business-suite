@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { AuthenticatedUser, JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ensureManagerOrAbove } from '../auth/roles';
+import { formatMoney } from '../config/money';
 import { EmailService } from '../email/email.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateQuoteDto, UpdateQuoteStatusDto } from './quotes.dto';
@@ -27,7 +28,7 @@ function serializeQuote(quote: any) {
 }
 
 function currency(value: Prisma.Decimal | number | string | null | undefined) {
-  return `$${money(value).toFixed(2)}`;
+  return formatMoney(money(value));
 }
 
 function formatDate(value: unknown) {

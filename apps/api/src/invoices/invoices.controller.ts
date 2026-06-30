@@ -3,6 +3,7 @@ import { InvoiceStatus, Prisma } from '@prisma/client';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { AuthenticatedUser, JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ensureManagerOrAbove } from '../auth/roles';
+import { formatMoney } from '../config/money';
 import { EmailService } from '../email/email.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateInvoiceDto, RecordPaymentDto, UpdateInvoiceStatusDto } from './invoices.dto';
@@ -37,7 +38,7 @@ function pdfEscape(value: unknown) {
 }
 
 function currency(value: Prisma.Decimal | number | string | null | undefined) {
-  return `$${money(value).toFixed(2)}`;
+  return formatMoney(money(value));
 }
 
 function formatDate(value: unknown) {
