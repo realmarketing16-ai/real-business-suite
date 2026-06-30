@@ -74,6 +74,17 @@ function Is-Https-Url {
   }
 }
 
+function Are-Https-Urls {
+  param([string]$Value)
+  if (-not (Has-Value $Value)) { return $false }
+  $urls = $Value.Split(",") | ForEach-Object { $_.Trim() } | Where-Object { $_ }
+  if ($urls.Count -eq 0) { return $false }
+  foreach ($url in $urls) {
+    if (-not (Is-Https-Url $url)) { return $false }
+  }
+  return $true
+}
+
 function Test-HttpEndpoint {
   param(
     [string]$Name,
@@ -97,7 +108,7 @@ Load-EnvFile $envPath
 
 Add-Check "DATABASE_URL" (Has-Value $env:DATABASE_URL) "Production database connection string is required."
 Add-Check "JWT_SECRET" (Is-Strong-Secret $env:JWT_SECRET) "Use at least 32 random characters and avoid placeholder words."
-Add-Check "WEB_URL" (Is-Https-Url $env:WEB_URL) "Production WEB_URL should be an https:// URL."
+Add-Check "WEB_URL" (Are-Https-Urls $env:WEB_URL) "Production WEB_URL should be one or more comma-separated https:// URLs."
 Add-Check "NEXT_PUBLIC_API_URL" (Is-Https-Url $env:NEXT_PUBLIC_API_URL) "Production web app should call an https:// API URL ending in /api."
 
 $emailDryRunValue = ""

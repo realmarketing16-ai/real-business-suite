@@ -5,6 +5,7 @@ import { IsIn } from 'class-validator';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { AuthenticatedUser, JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ensureOwnerOrAdmin } from '../auth/roles';
+import { primaryWebUrl } from '../config/web-url';
 import { PrismaService } from '../prisma/prisma.service';
 
 type SubscriptionPlan = 'FREE' | 'STARTER' | 'BUSINESS' | 'PRO';
@@ -240,7 +241,7 @@ export class BillingController {
   }
 
   private async createStripeCheckoutSession(stripeSecretKey: string, input: { companyId: string; customerId: string; plan: SubscriptionPlan }) {
-    const webUrl = this.config.get<string>('WEB_URL', 'http://localhost:3000').replace(/\/$/, '');
+    const webUrl = primaryWebUrl(this.config.get<string>('WEB_URL'));
     const params = new URLSearchParams();
     params.set('mode', 'subscription');
     params.set('customer', input.customerId);

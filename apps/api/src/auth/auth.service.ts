@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { compare, hash } from 'bcryptjs';
 import { createHash, randomBytes } from 'node:crypto';
+import { primaryWebUrl } from '../config/web-url';
 import { PrismaService } from '../prisma/prisma.service';
 import { ForgotPasswordDto, LoginDto, RegisterDto, ResetPasswordDto } from './auth.dto';
 
@@ -84,8 +85,8 @@ export class AuthService {
     const token = randomBytes(32).toString('hex');
     const tokenHash = this.hashToken(token);
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
-    const webUrl = this.config.get<string>('WEB_URL', 'http://localhost:3000');
-    const resetUrl = `${webUrl.replace(/\/$/, '')}/reset-password?token=${token}`;
+    const webUrl = primaryWebUrl(this.config.get<string>('WEB_URL'));
+    const resetUrl = `${webUrl}/reset-password?token=${token}`;
 
     const message = await this.prisma.$transaction(async (tx) => {
       const passwordResetToken = this.passwordResetTokens(tx);
