@@ -1,11 +1,12 @@
 import Link from 'next/link';
+import { BrandMark } from './brand-mark';
 import { brand } from '@/lib/brand';
 
 export default function Home() {
   return (
     <main className="landing">
       <nav className="nav shell">
-        <div className="brand"><span>{brand.initial}</span> {brand.name}</div>
+        <BrandMark />
         <div className="navActions"><Link href="/support">Support</Link><Link href="/login">Sign in</Link><Link className="button small" href="/register">Start free</Link></div>
       </nav>
       <section className="hero shell">

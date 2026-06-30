@@ -15,9 +15,13 @@ NEXT_PUBLIC_BRAND_REGION_LINE="Built in PNG, for growing businesses"
 NEXT_PUBLIC_BRAND_AUTH_LINE="Built to help PNG businesses grow with clarity."
 NEXT_PUBLIC_SUPPORT_CONTACT="support@example.com"
 NEXT_PUBLIC_DEMO_REVENUE="PGK 42.5k"
+NEXT_PUBLIC_BRAND_LOGO_PATH=/brand/real-logo.png
+NEXT_PUBLIC_BRAND_ICON_PATH=/brand/real-icon.png
 ```
 
 The app reads these values from `apps/web/lib/brand.ts`.
+
+Logo assets are stored in `apps/web/public/brand/`.
 
 ## Theme colors
 

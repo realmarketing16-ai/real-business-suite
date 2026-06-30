@@ -27,6 +27,7 @@ Web:
 - `NEXT_PUBLIC_CURRENCY`: display currency, default `PGK`.
 - `NEXT_PUBLIC_CURRENCY_LOCALE`: display locale, default `en-PG`.
 - `NEXT_PUBLIC_BRAND_NAME`, `NEXT_PUBLIC_BRAND_INITIAL`, `NEXT_PUBLIC_BRAND_TAGLINE`, `NEXT_PUBLIC_BRAND_REGION_LINE`, `NEXT_PUBLIC_BRAND_AUTH_LINE`: public brand presentation settings.
+- `NEXT_PUBLIC_BRAND_LOGO_PATH`, `NEXT_PUBLIC_BRAND_ICON_PATH`: public logo/icon asset paths.
 - `NEXT_PUBLIC_SUPPORT_CONTACT`: support email, phone number, or helpdesk link shown on the support page.
 
 Database container/local compose:

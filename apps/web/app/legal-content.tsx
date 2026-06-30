@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { ReactNode } from 'react';
+import { BrandMark } from './brand-mark';
 import { brand } from '@/lib/brand';
 
 type LegalPageProps = {
@@ -13,7 +14,7 @@ export function LegalPage({ eyebrow, title, description, children }: LegalPagePr
   return (
     <main className="legalPage">
       <nav className="nav shell">
-        <Link className="brand" href="/"><span>{brand.initial}</span> {brand.name}</Link>
+        <Link href="/"><BrandMark /></Link>
         <div className="navActions"><Link href="/support">Support</Link><Link href="/login">Sign in</Link><Link className="button small" href="/register">Start free</Link></div>
       </nav>
       <section className="legalHero shell">

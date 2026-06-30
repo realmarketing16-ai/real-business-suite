@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { FormEvent, Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { BrandMark } from '../brand-mark';
 import { api, saveSession, Session } from '@/lib/api';
 import { brand } from '@/lib/brand';
 
@@ -48,7 +49,7 @@ export default function ResetPasswordPage() {
   return (
     <main className="authPage">
       <section className="authBrand">
-        <div className="brand light"><span>{brand.initial}</span> {brand.name}</div>
+        <BrandMark tone="light" />
         <blockquote>Choose a strong password and get back to work.</blockquote>
       </section>
       <section className="authPanel">
